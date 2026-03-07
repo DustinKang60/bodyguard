@@ -1228,17 +1228,16 @@ function sosSend() {
 function dispatchSos(g, msg) {
   if (g) {
     if (g.kakao) {
-      /* 카카오ID 있으면 카카오톡만 */
-      var kakaoUrl = 'kakaolink://talk/chat?recepientId=' + encodeURIComponent(g.kakao) + '&text=' + encodeURIComponent(msg);
-      window.location.href = kakaoUrl;
+      /* 카카오톡 열기 + 메시지 자동 입력 (전송 버튼 1회 탭 필요) */
+      window.location.href = 'kakaolink://talk/chat?text=' + encodeURIComponent(msg);
     } else if (g.tel) {
-      /* 카카오ID 없으면 SMS만 */
+      /* 카카오ID 없으면 SMS */
       window.location.href = 'sms:' + g.tel + '?body=' + encodeURIComponent(msg);
     }
   }
   /* 브라우저 알림 */
   sendBrowserNotif('🆘 SOS 발송됨', (settings.name || '사용자') + '님의 긴급 신호가 보호자에게 전달되었습니다.');
-  showAlert('📞 보호자에게 SOS 메시지를 발송했습니다');
+  showAlert('📞 카톡이 열리면 전송 버튼을 한 번 눌러주세요');
   showScreenDirect('main');
 }
 
@@ -1283,14 +1282,13 @@ function sendMyLocation() {
 
 function dispatchLocation(g, msg) {
   if (g.kakao) {
-    /* 카카오ID 있으면 카카오톡만 */
-    var kakaoUrl = 'kakaolink://talk/chat?recepientId=' + encodeURIComponent(g.kakao) + '&text=' + encodeURIComponent(msg);
-    window.location.href = kakaoUrl;
+    /* 카카오톡 열기 + 메시지 자동 입력 (전송 버튼 1회 탭 필요) */
+    window.location.href = 'kakaolink://talk/chat?text=' + encodeURIComponent(msg);
   } else if (g.tel) {
-    /* 카카오ID 없으면 SMS만 */
+    /* 카카오ID 없으면 SMS */
     window.location.href = 'sms:' + g.tel + '?body=' + encodeURIComponent(msg);
   }
-  showAlert('📍 위치를 보호자에게 전송했습니다');
+  showAlert('📍 카톡이 열리면 전송 버튼을 한 번 눌러주세요');
 }
 
 /* ══════════════════════════════════════
