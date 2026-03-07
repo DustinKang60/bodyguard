@@ -1,7 +1,7 @@
 /* Bodyguard SW · 작은앱공방 */
 'use strict';
 
-var CACHE_NAME = 'bodyguard-v1';
+var CACHE_NAME = 'bodyguard-v2';
 var URLS = [
   '/bodyguard/',
   '/bodyguard/index.html',
