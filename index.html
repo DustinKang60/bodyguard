@@ -36,7 +36,7 @@ input  { font-family: 'Noto Sans KR', sans-serif; font-size: 16px; -webkit-appea
 }
 .scroll-area::-webkit-scrollbar { display: none; }
 
-/* ── CSS 변수 ── */
+/* ── CSS 변수 · 다크(기본) ── */
 :root {
   --bg: #0f1117;
   --surface: #1a1d27;
@@ -52,6 +52,38 @@ input  { font-family: 'Noto Sans KR', sans-serif; font-size: 16px; -webkit-appea
   --text-sub: #8b90a8;
   --border: rgba(255,255,255,0.08);
   --r: 18px;
+}
+/* ── 라이트 테마 ── */
+body.light {
+  --bg: #f4f6fb;
+  --surface: #ffffff;
+  --surface2: #e8edf5;
+  --primary: #2a6fd6;
+  --primary-dim: rgba(42,111,214,0.12);
+  --danger: #e03030;
+  --danger-dim: rgba(224,48,48,0.10);
+  --warning: #d48c00;
+  --success: #1da362;
+  --success-dim: rgba(29,163,98,0.12);
+  --text: #111827;
+  --text-sub: #6b7280;
+  --border: rgba(0,0,0,0.09);
+}
+body.light, body.light #app, body.light .screen { background: var(--bg); }
+body.light .topbar { background: var(--bg); }
+body.light #screen-sos { background: #fff0f0; }
+/* 테마 선택 버튼 */
+.theme-selector { display: flex; gap: 10px; }
+.theme-btn {
+  flex: 1; padding: 12px 0;
+  border-radius: 12px; font-size: 14px; font-weight: 700;
+  background: var(--surface2); color: var(--text-sub);
+  border: 1.5px solid var(--border);
+  transition: all .2s; cursor: pointer;
+}
+.theme-btn.active {
+  background: var(--primary-dim); color: var(--primary);
+  border-color: var(--primary);
 }
 
 /* ══════════════════════════════════════
@@ -716,6 +748,15 @@ input  { font-family: 'Noto Sans KR', sans-serif; font-size: 16px; -webkit-appea
   <div class="scroll-area">
     <div style="padding: 0 16px 24px;">
 
+      <div class="section-title">🎨 화면 테마</div>
+      <div class="card" style="margin-bottom:10px;">
+        <div style="font-size:13px; color:var(--text-sub); margin-bottom:12px;">화면 밝기를 선택해주세요</div>
+        <div class="theme-selector">
+          <button class="theme-btn" id="theme-btn-dark"  onclick="setTheme('dark')">🌙 어두운 화면</button>
+          <button class="theme-btn" id="theme-btn-light" onclick="setTheme('light')">☀️ 밝은 화면</button>
+        </div>
+      </div>
+
       <div class="section-title">👤 내 정보</div>
       <div class="settings-item" onclick="openSheet('sheet-myinfo')">
         <div class="si-icon si-blue">👤</div>
@@ -809,9 +850,14 @@ input  { font-family: 'Noto Sans KR', sans-serif; font-size: 16px; -webkit-appea
     <div class="sheet-handle"></div>
     <div class="sheet-title">보호자 추가</div>
     <label class="sheet-form-label">이름 (관계 포함)</label>
-    <input class="sheet-input" id="g-name-input"  type="text"  placeholder="예) 김영희 (딸)" maxlength="20"/>
-    <label class="sheet-form-label">전화번호</label>
-    <input class="sheet-input" id="g-tel-input"   type="tel"   placeholder="010-0000-0000"  maxlength="13"/>
+    <input class="sheet-input" id="g-name-input" type="text" placeholder="예) 김영희 (딸)" maxlength="20"/>
+    <label class="sheet-form-label">전화번호 (SMS 발송용)</label>
+    <input class="sheet-input" id="g-tel-input"  type="tel"  placeholder="010-0000-0000" maxlength="13"/>
+    <label class="sheet-form-label">카카오톡 ID <span style="font-weight:400; color:var(--text-sub);">(선택)</span></label>
+    <input class="sheet-input" id="g-kakao-input" type="text" placeholder="카카오톡 아이디 입력" maxlength="30"/>
+    <div style="font-size:11px; color:var(--text-sub); margin-top:6px;">
+      카톡 ID 등록 시 SOS 발송 때 카카오톡으로도 연결됩니다
+    </div>
     <div style="display:flex; gap:10px; margin-top:20px;">
       <button class="btn-ghost" style="flex:1;" onclick="closeSheet('sheet-guardian')">취소</button>
       <button class="btn-primary" style="flex:1;" onclick="saveGuardian()">추가</button>
@@ -836,13 +882,14 @@ var IDB_NAME   = 'bodyguard_db';
 /* ── 앱 상태 ── */
 var settings = {
   name: '',
-  guardians: [],           /* [{name, tel}] */
+  guardians: [],           /* [{name, tel, kakao}] */
   wellnessOn: true,
   idleHours: 12,
   stepGoal: 5000,
   lastActiveTs: Date.now(),
   stepsToday: 0,
-  stepHistory: []          /* 최근 7일 걸음수 배열 */
+  stepHistory: [],         /* 최근 7일 걸음수 배열 */
+  theme: 'dark'            /* 'dark' | 'light' */
 };
 
 var sosTimer = null;
@@ -861,6 +908,9 @@ var wellnessTimer = null;
 
   /* 설정 로드 */
   loadSettings();
+
+  /* 테마 적용 */
+  applyTheme(settings.theme || 'dark');
 
   /* 히스토리 (뒤로가기 대응) */
   history.replaceState({ screen: 'main' }, '');
@@ -1103,6 +1153,9 @@ function renderSettings() {
   if (list) {
     list.innerHTML = '';
     (settings.guardians || []).forEach(function(g, i) {
+      var kakaoTag = g.kakao
+        ? '<div style="font-size:11px; color:var(--primary); margin-top:2px;">💬 카톡: ' + esc(g.kakao) + '</div>'
+        : '<div style="font-size:11px; color:var(--text-sub); margin-top:2px;">💬 카톡 ID 미등록 (SMS만 발송)</div>';
       var div = document.createElement('div');
       div.className = 'guardian-card';
       div.innerHTML =
@@ -1110,12 +1163,15 @@ function renderSettings() {
         '<div class="g-info">' +
           '<div class="g-name">' + esc(g.name) + '</div>' +
           '<div class="g-tel">' + esc(g.tel) + '</div>' +
+          kakaoTag +
         '</div>' +
         '<div class="g-badge">' + (i === 0 ? '1순위' : (i+1)+'순위') + '</div>' +
         '<button onclick="removeGuardian(' + i + ')" style="background:none;border:none;color:var(--text-sub);font-size:18px;margin-left:6px;padding:4px;">✕</button>';
       list.appendChild(div);
     });
   }
+  /* 테마 버튼 상태 */
+  updateThemeButtons();
   updateNotifStatus();
 }
 
@@ -1151,10 +1207,50 @@ function updateSosRing() {
 function sosSend() {
   clearInterval(sosTimer);
   var g = (settings.guardians || [])[0];
-  if (g && g.tel) {
-    /* SMS 딥링크 */
-    var msg = encodeURIComponent('[Bodyguard] ' + (settings.name || '사용자') + '님이 SOS 신호를 보냈습니다. 즉시 확인해주세요.');
-    window.location.href = 'sms:' + g.tel + '?body=' + msg;
+  var userName = settings.name || '사용자';
+
+  /* GPS 위치 획득 후 발송 */
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      function(pos) {
+        var lat = pos.coords.latitude.toFixed(6);
+        var lon = pos.coords.longitude.toFixed(6);
+        var mapUrl = 'https://map.kakao.com/link/map/현재위치,' + lat + ',' + lon;
+        var now = new Date().toLocaleString('ko-KR');
+        var msg = '[Bodyguard] 🆘 ' + userName + '님이 SOS 신호를 보냈습니다!\n\n📍 현재 위치 (카카오맵):\n' + mapUrl + '\n\n🕐 ' + now;
+        dispatchSos(g, msg);
+      },
+      function() {
+        /* GPS 실패 시 위치 없이 발송 */
+        var now = new Date().toLocaleString('ko-KR');
+        var msg = '[Bodyguard] 🆘 ' + userName + '님이 SOS 신호를 보냈습니다!\n(위치 정보를 가져올 수 없습니다)\n\n🕐 ' + now;
+        dispatchSos(g, msg);
+      },
+      { timeout: 8000, maximumAge: 30000 }
+    );
+  } else {
+    var now = new Date().toLocaleString('ko-KR');
+    var msg = '[Bodyguard] 🆘 ' + userName + '님이 SOS 신호를 보냈습니다!\n\n🕐 ' + now;
+    dispatchSos(g, msg);
+  }
+}
+
+function dispatchSos(g, msg) {
+  if (g) {
+    /* ① 카톡 ID 있으면 카카오톡 채팅창 열기 */
+    if (g.kakao) {
+      var kakaoUrl = 'kakaolink://talk/chat?recepientId=' + encodeURIComponent(g.kakao) + '&text=' + encodeURIComponent(msg);
+      window.location.href = kakaoUrl;
+      /* 카톡 앱이 없거나 실패 대비 — 1.5초 후 SMS 폴백 */
+      setTimeout(function() {
+        if (g.tel) {
+          window.location.href = 'sms:' + g.tel + '?body=' + encodeURIComponent(msg);
+        }
+      }, 1500);
+    } else if (g.tel) {
+      /* ② 카톡 ID 없으면 SMS */
+      window.location.href = 'sms:' + g.tel + '?body=' + encodeURIComponent(msg);
+    }
   }
   /* 브라우저 알림 */
   sendBrowserNotif('🆘 SOS 발송됨', (settings.name || '사용자') + '님의 긴급 신호가 보호자에게 전달되었습니다.');
@@ -1236,15 +1332,17 @@ function updateIdleOptButtons() {
    보호자 관리
 ══════════════════════════════════════ */
 function saveGuardian() {
-  var name = document.getElementById('g-name-input').value.trim();
-  var tel  = document.getElementById('g-tel-input').value.trim();
+  var name  = document.getElementById('g-name-input').value.trim();
+  var tel   = document.getElementById('g-tel-input').value.trim();
+  var kakao = document.getElementById('g-kakao-input').value.trim();
   if (!name || !tel) { showAlert('이름과 전화번호를 모두 입력해주세요'); return; }
   if (!settings.guardians) settings.guardians = [];
-  settings.guardians.push({ name: name, tel: tel });
+  settings.guardians.push({ name: name, tel: tel, kakao: kakao });
   saveSettings();
   closeSheet('sheet-guardian');
-  document.getElementById('g-name-input').value = '';
-  document.getElementById('g-tel-input').value = '';
+  document.getElementById('g-name-input').value  = '';
+  document.getElementById('g-tel-input').value   = '';
+  document.getElementById('g-kakao-input').value = '';
   renderSettings();
   showAlert('✅ 보호자가 추가되었습니다');
 }
@@ -1366,6 +1464,34 @@ function resetApp() {
   try { localStorage.removeItem(S_KEY); } catch(e) {}
   try { localStorage.removeItem(NOTIF_KEY); } catch(e) {}
   location.reload();
+}
+
+/* ══════════════════════════════════════
+   테마
+══════════════════════════════════════ */
+function setTheme(theme) {
+  settings.theme = theme;
+  saveSettings();
+  applyTheme(theme);
+  updateThemeButtons();
+  showAlert(theme === 'light' ? '☀️ 밝은 화면으로 변경되었습니다' : '🌙 어두운 화면으로 변경되었습니다');
+}
+
+function applyTheme(theme) {
+  if (theme === 'light') {
+    document.body.classList.add('light');
+  } else {
+    document.body.classList.remove('light');
+  }
+}
+
+function updateThemeButtons() {
+  var dark  = document.getElementById('theme-btn-dark');
+  var light = document.getElementById('theme-btn-light');
+  if (!dark || !light) return;
+  var isDark = (settings.theme || 'dark') === 'dark';
+  dark.className  = 'theme-btn' + (isDark  ? ' active' : '');
+  light.className = 'theme-btn' + (!isDark ? ' active' : '');
 }
 
 /* ══════════════════════════════════════
