@@ -257,7 +257,7 @@ body.light #screen-sos { background: #fff0f0; }
 /* ══════════════════════════════════════
    화면 2: 메인 홈
 ══════════════════════════════════════ */
-#screen-main .topbar { padding-top: max(52px, env(safe-area-inset-top)); }
+#screen-main .topbar { padding-top: max(20px, env(safe-area-inset-top)); padding-bottom: 10px; }
 .home-greeting {
   font-size: 22px; font-weight: 900;
 }
@@ -323,25 +323,13 @@ body.light #screen-sos { background: #fff0f0; }
   cursor: pointer;
   transition: border-color .2s, background .2s;
   display: flex; flex-direction: column; gap: 2px;
+  justify-content: space-between;
+  min-height: 130px;
 }
 .feat-card:active { background: var(--surface2); }
 .feat-icon  { font-size: 32px; margin-bottom: 6px; }
 .feat-name  { font-size: 16px; font-weight: 700; }
 .feat-desc  { font-size: 13px; color: var(--text-sub); line-height: 1.4; }
-
-/* 오늘 활동 요약 */
-.activity-row {
-  display: flex; gap: 10px; padding: 0 16px; margin-bottom: 10px;
-}
-.act-card {
-  flex: 1; background: var(--surface);
-  border: 1.5px solid var(--border);
-  border-radius: var(--r); padding: 14px 12px;
-  text-align: center;
-}
-.act-icon  { font-size: 26px; }
-.act-value { font-size: 20px; font-weight: 900; margin: 4px 0 2px; }
-.act-label { font-size: 13px; color: var(--text-sub); }
 
 /* ══════════════════════════════════════
    화면 3: SOS 확인
@@ -572,25 +560,6 @@ body.light #screen-sos { background: #fff0f0; }
         <p class="sos-hint">누르면 보호자에게 즉시 연락됩니다</p>
       </div>
 
-      <!-- 오늘 활동 요약 -->
-      <div class="activity-row">
-        <div class="act-card">
-          <div class="act-icon">👣</div>
-          <div class="act-value" id="home-steps">0</div>
-          <div class="act-label">오늘 걸음 수</div>
-        </div>
-        <div class="act-card">
-          <div class="act-icon">⏱️</div>
-          <div class="act-value" id="home-idle">0h</div>
-          <div class="act-label">마지막 활동</div>
-        </div>
-        <div class="act-card">
-          <div class="act-icon">🔋</div>
-          <div class="act-value" id="home-battery">--%</div>
-          <div class="act-label">배터리</div>
-        </div>
-      </div>
-
       <!-- 기능 카드 그리드 -->
       <div class="feat-grid">
         <div class="feat-card" onclick="sendMyLocation()">
@@ -602,20 +571,20 @@ body.light #screen-sos { background: #fff0f0; }
         <div class="feat-card" onclick="showScreen('activity')">
           <div class="feat-icon">👣</div>
           <div class="feat-name">안부 확인</div>
-          <div class="feat-desc">활동량 · 미활동 알림</div>
+          <div class="feat-desc">미활동 시 보호자 알림</div>
           <div class="badge badge-on" id="badge-wellness">● 작동 중</div>
+        </div>
+        <div class="feat-card" onclick="callKakaoTaxi()">
+          <div class="feat-icon">🚕</div>
+          <div class="feat-name">택시 부르기</div>
+          <div class="feat-desc">카카오택시 앱 바로 열기</div>
+          <div class="badge badge-on">● 사용 가능</div>
         </div>
         <div class="feat-card" onclick="showAlert('🚧 낙상 감지는 2단계에서 추가됩니다')">
           <div class="feat-icon">🤸</div>
           <div class="feat-name">낙상 감지</div>
           <div class="feat-desc">충격·자세 변화 감지</div>
           <div class="badge badge-off">준비 중</div>
-        </div>
-        <div class="feat-card" onclick="showScreen('settings')">
-          <div class="feat-icon">⚙️</div>
-          <div class="feat-name">설정</div>
-          <div class="feat-desc">보호자 · 알림 설정</div>
-          <div class="badge badge-primary">›</div>
         </div>
       </div>
 
@@ -1091,15 +1060,9 @@ function updateGreetingDate() {
 }
 
 function updateHomeStats() {
-  var stepsEl   = document.getElementById('home-steps');
-  var idleEl    = document.getElementById('home-idle');
-  var battEl    = document.getElementById('home-battery');
-  if (stepsEl) stepsEl.textContent = (settings.stepsToday || 0).toLocaleString();
-
   /* 마지막 활동 경과 시간 */
   var mins = Math.floor((Date.now() - (settings.lastActiveTs || Date.now())) / 60000);
   var idleStr = mins < 60 ? (mins + '분 전') : (Math.floor(mins/60) + '시간 전');
-  if (idleEl) idleEl.textContent = mins < 60 ? (mins + '분') : (Math.floor(mins/60) + 'h');
 
   /* 상태 배너 */
   var dot  = document.getElementById('main-status-dot');
@@ -1121,9 +1084,7 @@ function updateHomeStats() {
 }
 
 function updateBattery(level) {
-  var pct = Math.round(level * 100);
-  var el = document.getElementById('home-battery');
-  if (el) el.textContent = pct + '%';
+  /* 배터리 표시 제거됨 - 함수는 유지 */
 }
 
 function renderActivity() {
@@ -1266,18 +1227,12 @@ function sosSend() {
 
 function dispatchSos(g, msg) {
   if (g) {
-    /* ① 카톡 ID 있으면 카카오톡 채팅창 열기 */
     if (g.kakao) {
+      /* 카카오ID 있으면 카카오톡만 */
       var kakaoUrl = 'kakaolink://talk/chat?recepientId=' + encodeURIComponent(g.kakao) + '&text=' + encodeURIComponent(msg);
       window.location.href = kakaoUrl;
-      /* 카톡 앱이 없거나 실패 대비 — 1.5초 후 SMS 폴백 */
-      setTimeout(function() {
-        if (g.tel) {
-          window.location.href = 'sms:' + g.tel + '?body=' + encodeURIComponent(msg);
-        }
-      }, 1500);
     } else if (g.tel) {
-      /* ② 카톡 ID 없으면 SMS */
+      /* 카카오ID 없으면 SMS만 */
       window.location.href = 'sms:' + g.tel + '?body=' + encodeURIComponent(msg);
     }
   }
@@ -1328,15 +1283,25 @@ function sendMyLocation() {
 
 function dispatchLocation(g, msg) {
   if (g.kakao) {
+    /* 카카오ID 있으면 카카오톡만 */
     var kakaoUrl = 'kakaolink://talk/chat?recepientId=' + encodeURIComponent(g.kakao) + '&text=' + encodeURIComponent(msg);
     window.location.href = kakaoUrl;
-    setTimeout(function() {
-      if (g.tel) window.location.href = 'sms:' + g.tel + '?body=' + encodeURIComponent(msg);
-    }, 1500);
   } else if (g.tel) {
+    /* 카카오ID 없으면 SMS만 */
     window.location.href = 'sms:' + g.tel + '?body=' + encodeURIComponent(msg);
   }
   showAlert('📍 위치를 보호자에게 전송했습니다');
+}
+
+/* ══════════════════════════════════════
+   택시 부르기
+══════════════════════════════════════ */
+function callKakaoTaxi() {
+  /* 카카오T 앱 딥링크 → 앱 없으면 플레이스토어로 이동 */
+  window.location.href = 'kakaot://';
+  setTimeout(function() {
+    window.location.href = 'https://play.google.com/store/apps/details?id=com.kakao.taxi';
+  }, 1500);
 }
 
 /* ══════════════════════════════════════
