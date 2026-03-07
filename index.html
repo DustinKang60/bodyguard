@@ -1360,11 +1360,26 @@ function dispatchLocation(g, msg) {
    택시 부르기
 ══════════════════════════════════════ */
 function callKakaoTaxi() {
-  /* 카카오T 앱 딥링크 → 앱 없으면 플레이스토어로 이동 */
-  window.location.href = 'kakaot://';
-  setTimeout(function() {
-    window.location.href = 'https://play.google.com/store/apps/details?id=com.kakao.taxi';
-  }, 1500);
+  /* GPS 획득 후 카카오T 호출 화면으로 바로 진입 */
+  showAlert('📍 현재 위치 확인 중...');
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      function(pos) {
+        var lat = pos.coords.latitude;
+        var lon = pos.coords.longitude;
+        var intentUrl = 'intent://taxi/call?startLat=' + lat + '&startLng=' + lon +
+          '#Intent;scheme=kakaot;package=com.kakao.taxi;end';
+        window.location.href = intentUrl;
+      },
+      function() {
+        /* GPS 실패 시 그냥 앱만 열기 */
+        window.location.href = 'intent://taxi#Intent;scheme=kakaot;package=com.kakao.taxi;end';
+      },
+      { timeout: 5000, maximumAge: 30000 }
+    );
+  } else {
+    window.location.href = 'intent://taxi#Intent;scheme=kakaot;package=com.kakao.taxi;end';
+  }
 }
 
 /* ══════════════════════════════════════
