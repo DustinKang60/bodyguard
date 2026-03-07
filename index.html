@@ -601,7 +601,7 @@ body.light #screen-sos { background: #fff0f0; }
       <div class="tab-icon">🏠</div>홈
     </div>
     <div class="tab-item" onclick="showScreen('activity')">
-      <div class="tab-icon">📊</div>활동
+      <div class="tab-icon">📋</div>기록
     </div>
     <div class="tab-item" onclick="showScreen('settings')">
       <div class="tab-icon">⚙️</div>설정
@@ -628,12 +628,12 @@ body.light #screen-sos { background: #fff0f0; }
 </div>
 
 <!-- ══════════════════════════════════════
-     화면: 활동 현황
+     화면: 발송 기록
 ══════════════════════════════════════ -->
 <div class="screen" id="screen-activity">
   <div class="topbar">
     <button class="back-btn" onclick="showScreen('main')">←</button>
-    <div class="topbar-title">📊 활동 현황</div>
+    <div class="topbar-title">📋 발송 기록</div>
   </div>
 
   <div class="scroll-area">
@@ -643,43 +643,26 @@ body.light #screen-sos { background: #fff0f0; }
       <div class="last-seen-card">
         <div class="ls-icon">📱</div>
         <div class="ls-text">
-          <div class="ls-label">마지막 활동 감지</div>
+          <div class="ls-label">마지막 앱 활동</div>
           <div class="ls-value" id="last-active-text">방금 전</div>
         </div>
       </div>
 
-      <!-- 걸음 수 바 -->
-      <div class="card" style="margin-bottom:10px;">
-        <div class="card-label">오늘 걸음 수</div>
-        <div style="display:flex; align-items:baseline; gap:6px; margin-bottom:10px;">
-          <span style="font-size:32px; font-weight:900;" id="steps-big">0</span>
-          <span style="font-size:14px; color:var(--text-sub);">걸음</span>
-          <span style="margin-left:auto; font-size:12px; color:var(--text-sub);" id="steps-goal-pct">목표의 0%</span>
+      <!-- 요약 카드 -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+        <div class="card" style="margin-bottom:0; text-align:center;">
+          <div style="font-size:28px; font-weight:900; color:var(--danger);" id="log-sos-count">0</div>
+          <div style="font-size:13px; color:var(--text-sub); margin-top:4px;">SOS 발송</div>
         </div>
-        <div class="steps-bar-track">
-          <div class="steps-bar-fill" id="steps-bar" style="width:0%"></div>
-        </div>
-        <div style="display:flex; justify-content:space-between; margin-top:6px; font-size:11px; color:var(--text-sub);">
-          <span>0</span><span>목표: 5,000걸음</span>
-        </div>
-      </div>
-
-      <!-- 7일 활동 히트맵 -->
-      <div class="card" style="margin-bottom:10px;">
-        <div class="card-label" style="margin-bottom:12px;">최근 7일 활동</div>
-        <div class="activity-heatmap" id="heatmap"></div>
-        <div style="display:flex; gap:8px; margin-top:10px; align-items:center; font-size:11px; color:var(--text-sub);">
-          <span>적음</span>
-          <div style="width:14px;height:14px;border-radius:3px;background:rgba(79,142,247,0.18);"></div>
-          <div style="width:14px;height:14px;border-radius:3px;background:rgba(79,142,247,0.45);"></div>
-          <div style="width:14px;height:14px;border-radius:3px;background:var(--primary);"></div>
-          <span>많음</span>
+        <div class="card" style="margin-bottom:0; text-align:center;">
+          <div style="font-size:28px; font-weight:900; color:var(--primary);" id="log-loc-count">0</div>
+          <div style="font-size:13px; color:var(--text-sub); margin-top:4px;">위치 알림</div>
         </div>
       </div>
 
       <!-- 미활동 알림 설정 -->
-      <div class="section-title">⏰ 미활동 알림</div>
-      <div class="card">
+      <div class="section-title">⏰ 안부 확인 설정</div>
+      <div class="card" style="margin-bottom:10px;">
         <div class="card-row">
           <div>
             <div style="font-size:15px; font-weight:700;">안부 확인 알림</div>
@@ -694,6 +677,15 @@ body.light #screen-sos { background: #fff0f0; }
         </div>
       </div>
 
+      <!-- 발송 기록 목록 -->
+      <div class="section-title">📨 최근 발송 내역</div>
+      <div id="log-list">
+        <div style="text-align:center; padding:32px 0; color:var(--text-sub);">
+          <div style="font-size:36px; margin-bottom:12px;">📭</div>
+          <div style="font-size:15px;">아직 발송 기록이 없습니다</div>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -702,7 +694,7 @@ body.light #screen-sos { background: #fff0f0; }
       <div class="tab-icon">🏠</div>홈
     </div>
     <div class="tab-item active" onclick="showScreen('activity')">
-      <div class="tab-icon">📊</div>활동
+      <div class="tab-icon">📋</div>기록
     </div>
     <div class="tab-item" onclick="showScreen('settings')">
       <div class="tab-icon">⚙️</div>설정
@@ -760,9 +752,9 @@ body.light #screen-sos { background: #fff0f0; }
         <div class="si-icon si-green">📱</div>
         <div class="si-text">
           <div class="si-name">알림 수단</div>
-          <div class="si-desc">SMS + 브라우저 알림</div>
+          <div class="si-desc">카카오톡 공유 · SMS · 브라우저 알림</div>
         </div>
-        <div class="si-right" style="font-size:11px; color:var(--text-sub);">v2에서 카톡 추가</div>
+        <div class="si-right" style="font-size:11px; color:var(--success);">✅ 연동됨</div>
       </div>
 
       <div class="section-title">🔏 데이터</div>
@@ -792,7 +784,7 @@ body.light #screen-sos { background: #fff0f0; }
       <div class="tab-icon">🏠</div>홈
     </div>
     <div class="tab-item" onclick="showScreen('activity')">
-      <div class="tab-icon">📊</div>활동
+      <div class="tab-icon">📋</div>기록
     </div>
     <div class="tab-item active" onclick="showScreen('settings')">
       <div class="tab-icon">⚙️</div>설정
@@ -937,8 +929,9 @@ var wellnessTimer = null;
   /* 카카오 SDK 초기화 */
   initKakao();
 
-  /* 설정 로드 */
+  /* 설정·로그 로드 */
   loadSettings();
+  loadLogs();
 
   /* 테마 적용 */
   applyTheme(settings.theme || 'dark');
@@ -1124,37 +1117,63 @@ function updateBattery(level) {
   /* 배터리 표시 제거됨 - 함수는 유지 */
 }
 
-function renderActivity() {
-  /* 걸음수 바 */
-  var steps = settings.stepsToday || 0;
-  var goal  = settings.stepGoal || 5000;
-  var pct   = Math.min(100, Math.round(steps / goal * 100));
-  var bigEl = document.getElementById('steps-big');
-  var barEl = document.getElementById('steps-bar');
-  var pctEl = document.getElementById('steps-goal-pct');
-  if (bigEl) bigEl.textContent = steps.toLocaleString();
-  if (barEl) barEl.style.width = pct + '%';
-  if (pctEl) pctEl.textContent = '목표의 ' + pct + '%';
+/* ══════════════════════════════════════
+   발송 기록
+══════════════════════════════════════ */
+var LOG_KEY = 'bodyguard_logs_v1';
+var sendLogs = [];
 
-  /* 히트맵 */
-  var hm = document.getElementById('heatmap');
-  if (hm) {
-    hm.innerHTML = '';
-    var hist = settings.stepHistory || [0,0,0,0,0,0,0];
-    var days = ['일','월','화','수','목','금','토'];
-    var today = new Date();
-    for (var i = 6; i >= 0; i--) {
-      var d = new Date(today); d.setDate(d.getDate() - i);
-      var cell = document.createElement('div');
-      var s = hist[6 - i] || 0;
-      var cls = 'hm-cell';
-      if (s >= 7000) cls += ' active-hi';
-      else if (s >= 3000) cls += ' active-mid';
-      else if (s > 0) cls += ' active-low';
-      cell.className = cls;
-      cell.textContent = days[d.getDay()];
-      hm.appendChild(cell);
-    }
+function loadLogs() {
+  try {
+    var raw = localStorage.getItem(LOG_KEY);
+    if (raw) sendLogs = JSON.parse(raw);
+  } catch(e) { sendLogs = []; }
+}
+
+function saveLog(type, detail) {
+  loadLogs();
+  sendLogs.unshift({
+    type: type,       /* 'sos' | 'location' | 'wellness' */
+    detail: detail,
+    ts: Date.now()
+  });
+  if (sendLogs.length > 50) sendLogs = sendLogs.slice(0, 50);
+  try { localStorage.setItem(LOG_KEY, JSON.stringify(sendLogs)); } catch(e) {}
+}
+
+function renderActivity() {
+  loadLogs();
+
+  /* 요약 카운트 */
+  var sosCount = sendLogs.filter(function(l){ return l.type === 'sos'; }).length;
+  var locCount = sendLogs.filter(function(l){ return l.type === 'location'; }).length;
+  var sc = document.getElementById('log-sos-count');
+  var lc = document.getElementById('log-loc-count');
+  if (sc) sc.textContent = sosCount;
+  if (lc) lc.textContent = locCount;
+
+  /* 목록 */
+  var list = document.getElementById('log-list');
+  if (!list) return;
+  if (!sendLogs.length) {
+    list.innerHTML = '<div style="text-align:center; padding:32px 0; color:var(--text-sub);"><div style="font-size:36px; margin-bottom:12px;">📭</div><div style="font-size:15px;">아직 발송 기록이 없습니다</div></div>';
+  } else {
+    list.innerHTML = sendLogs.map(function(l) {
+      var icon = l.type === 'sos' ? '🆘' : l.type === 'location' ? '📍' : '⚠️';
+      var label = l.type === 'sos' ? 'SOS 발송' : l.type === 'location' ? '위치 알림' : '안부 확인';
+      var color = l.type === 'sos' ? 'var(--danger)' : l.type === 'location' ? 'var(--primary)' : 'var(--warning)';
+      var d = new Date(l.ts);
+      var timeStr = (d.getMonth()+1) + '/' + d.getDate() + ' ' +
+        String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+      return '<div class="card" style="margin-bottom:8px; display:flex; align-items:center; gap:12px;">' +
+        '<div style="font-size:26px;">' + icon + '</div>' +
+        '<div style="flex:1;">' +
+          '<div style="font-size:15px; font-weight:700; color:' + color + ';">' + label + '</div>' +
+          '<div style="font-size:12px; color:var(--text-sub); margin-top:2px;">' + esc(l.detail || '') + '</div>' +
+        '</div>' +
+        '<div style="font-size:12px; color:var(--text-sub); flex-shrink:0;">' + timeStr + '</div>' +
+      '</div>';
+    }).join('');
   }
 
   /* 토글/버튼 상태 */
@@ -1167,6 +1186,7 @@ function renderActivity() {
   var laEl = document.getElementById('last-active-text');
   if (laEl) laEl.textContent = mins < 1 ? '방금 전' : (mins < 60 ? mins + '분 전' : Math.floor(mins/60) + '시간 전');
 }
+
 
 function renderSettings() {
   var nameEl = document.getElementById('si-myname');
@@ -1263,19 +1283,22 @@ function sosSend() {
 }
 
 function dispatchSos(g, msg) {
+  var guardian = g ? esc(g.name) : '보호자';
   if (g) {
     if (g.kakao) {
-      /* 카카오 SDK로 나에게 공유 (자동 전송) */
       kakaoShare(msg, '🆘 SOS 긴급 신호', function() {
-        /* SDK 실패 시 SMS 폴백 */
         if (g.tel) window.location.href = 'sms:' + g.tel + '?body=' + encodeURIComponent(msg);
       });
+      saveLog('sos', guardian + '님께 카카오톡으로 발송');
     } else if (g.tel) {
       window.location.href = 'sms:' + g.tel + '?body=' + encodeURIComponent(msg);
+      saveLog('sos', guardian + '님께 SMS 발송');
     }
+  } else {
+    saveLog('sos', '보호자 미등록 상태');
   }
   sendBrowserNotif('🆘 SOS 발송됨', (settings.name || '사용자') + '님의 긴급 신호가 보호자에게 전달되었습니다.');
-  showAlert('📞 SOS 신호를 발송했습니다');
+  showAlert(g && g.kakao ? '📲 카카오톡 공유창에서 보호자를 선택해주세요' : '📞 SOS 신호를 발송했습니다');
   showScreenDirect('main');
 }
 
@@ -1319,14 +1342,18 @@ function sendMyLocation() {
 }
 
 function dispatchLocation(g, msg) {
+  var guardian = g ? esc(g.name) : '보호자';
   if (g.kakao) {
     kakaoShare(msg, '📍 현재 위치 알림', function() {
       if (g.tel) window.location.href = 'sms:' + g.tel + '?body=' + encodeURIComponent(msg);
     });
+    saveLog('location', guardian + '님께 카카오톡으로 발송');
+    showAlert('📲 카카오톡 공유창에서 보호자를 선택해주세요');
   } else if (g.tel) {
     window.location.href = 'sms:' + g.tel + '?body=' + encodeURIComponent(msg);
+    saveLog('location', guardian + '님께 SMS 발송');
+    showAlert('📍 위치를 보호자에게 전송했습니다');
   }
-  showAlert('📍 위치를 보호자에게 전송했습니다');
 }
 
 /* ══════════════════════════════════════
@@ -1368,8 +1395,10 @@ function checkWellness() {
         kakaoShare(msg, '⚠️ 안부 확인 요청', function() {
           if (g.tel) window.location.href = 'sms:' + g.tel + '?body=' + encodeURIComponent(msg);
         });
+        saveLog('wellness', esc(g.name) + '님께 카카오톡으로 발송');
       } else if (g.tel) {
         window.location.href = 'sms:' + g.tel + '?body=' + encodeURIComponent(msg);
+        saveLog('wellness', esc(g.name) + '님께 SMS 발송');
       }
     }
   }
@@ -1572,6 +1601,8 @@ function resetApp() {
   /* 1. localStorage 삭제 */
   try { localStorage.removeItem(S_KEY); } catch(e) {}
   try { localStorage.removeItem(NOTIF_KEY); } catch(e) {}
+  try { localStorage.removeItem(LOG_KEY); } catch(e) {}
+  sendLogs = [];
   /* 2. IndexedDB 삭제 */
   try { indexedDB.deleteDatabase(IDB_NAME); } catch(e) {}
   /* 3. 메모리 settings 초기화 */
