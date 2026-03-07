@@ -1562,17 +1562,33 @@ function exportData() {
 
 function resetApp() {
   if (!confirm('모든 설정과 데이터가 삭제됩니다.\n정말 초기화하시겠습니까?')) return;
+  /* 1. localStorage 삭제 */
   try { localStorage.removeItem(S_KEY); } catch(e) {}
   try { localStorage.removeItem(NOTIF_KEY); } catch(e) {}
-  /* 서비스워커 캐시까지 삭제 후 재시작 */
+  /* 2. IndexedDB 삭제 */
+  try { indexedDB.deleteDatabase(IDB_NAME); } catch(e) {}
+  /* 3. 메모리 settings 초기화 */
+  settings = {
+    name: '', guardians: [], wellnessOn: true, idleHours: 12,
+    stepGoal: 5000, lastActiveTs: Date.now(),
+    stepsToday: 0, stepHistory: [], theme: 'dark'
+  };
+  /* 4. 캐시 삭제 후 온보딩으로 강제 이동 */
+  function goOnboard() {
+    showScreenDirect('onboard');
+    /* 입력 필드 초기화 */
+    ['input-name','input-guardian-name','input-guardian-tel','input-guardian-kakao'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    applyTheme('dark');
+  }
   if ('caches' in window) {
     caches.keys().then(function(keys) {
-      Promise.all(keys.map(function(k) { return caches.delete(k); })).then(function() {
-        location.replace('/bodyguard/');
-      });
-    });
+      Promise.all(keys.map(function(k) { return caches.delete(k); })).then(goOnboard);
+    }).catch(goOnboard);
   } else {
-    location.replace('/bodyguard/');
+    goOnboard();
   }
 }
 
