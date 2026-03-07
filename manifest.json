@@ -1,0 +1,13 @@
+{
+  "name": "Bodyguard · 내 곁의 보호자",
+  "short_name": "Bodyguard",
+  "start_url": "/bodyguard/",
+  "scope": "/bodyguard/",
+  "display": "standalone",
+  "background_color": "#0f1117",
+  "theme_color": "#0f1117",
+  "icons": [
+    { "src": "/bodyguard/icons/icon-192x192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/bodyguard/icons/icon-512x512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

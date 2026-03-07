@@ -1,0 +1,1393 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <meta name="theme-color" content="#0f1117"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Bodyguard"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <link rel="manifest" href="/bodyguard/manifest.json"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap"/>
+  <title>Bodyguard · 내 곁의 보호자</title>
+<style>
+/* ── 리셋 & 전역 ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+* { -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; background: #0f1117; overflow: hidden; }
+body { font-family: 'Noto Sans KR', sans-serif; color: #f0f2ff; }
+button { font-family: 'Noto Sans KR', sans-serif; cursor: pointer; border: none; }
+input  { font-family: 'Noto Sans KR', sans-serif; font-size: 16px; -webkit-appearance: none; }
+#app   { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; background: #0f1117; }
+
+/* ── 화면 전환 ── */
+.screen { display: none; flex-direction: column; height: 100dvh; overflow: hidden; }
+.screen.active { display: flex; }
+
+/* ── 스크롤 영역 ── */
+.scroll-area {
+  flex: 1; min-height: 0;
+  overflow-y: auto; overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scrollbar-width: none; -ms-overflow-style: none;
+}
+.scroll-area::-webkit-scrollbar { display: none; }
+
+/* ── CSS 변수 ── */
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface2: #22263a;
+  --primary: #4f8ef7;
+  --primary-dim: rgba(79,142,247,0.15);
+  --danger: #ff4d4d;
+  --danger-dim: rgba(255,77,77,0.15);
+  --warning: #ffb84d;
+  --success: #4dcc8f;
+  --success-dim: rgba(77,204,143,0.15);
+  --text: #f0f2ff;
+  --text-sub: #8b90a8;
+  --border: rgba(255,255,255,0.08);
+  --r: 18px;
+}
+
+/* ══════════════════════════════════════
+   공통 컴포넌트
+══════════════════════════════════════ */
+.topbar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 52px 20px 14px;
+  background: var(--bg);
+  flex-shrink: 0;
+}
+.topbar-title { font-size: 20px; font-weight: 900; flex: 1; }
+.topbar-sub   { font-size: 13px; color: var(--text-sub); }
+.back-btn {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: var(--surface2); border: 1.5px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; color: var(--text); flex-shrink: 0;
+}
+
+/* 탭바 */
+.tab-bar {
+  display: flex; justify-content: space-around;
+  padding: 8px 0 max(12px, env(safe-area-inset-bottom));
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.tab-item {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  font-size: 10px; color: var(--text-sub); padding: 4px 16px;
+  border-radius: 12px; transition: color .2s;
+  font-weight: 500;
+}
+.tab-item.active { color: var(--primary); }
+.tab-icon { font-size: 22px; }
+
+/* 카드 */
+.card {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r);
+  padding: 16px 18px;
+  margin-bottom: 10px;
+}
+.card-row {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.card-label { font-size: 12px; color: var(--text-sub); margin-bottom: 4px; }
+.card-value { font-size: 15px; font-weight: 700; }
+
+/* 토글 */
+.toggle {
+  width: 50px; height: 28px; border-radius: 14px;
+  background: var(--success); position: relative;
+  cursor: pointer; flex-shrink: 0;
+  box-shadow: 0 0 8px rgba(77,204,143,0.35);
+  transition: background .2s, box-shadow .2s;
+}
+.toggle::after {
+  content: ''; position: absolute;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: #fff; top: 3px; right: 3px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  transition: right .2s, left .2s;
+}
+.toggle.off { background: var(--surface2); box-shadow: none; }
+.toggle.off::after { right: auto; left: 3px; }
+
+/* 오버레이 */
+.overlay {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(0,0,0,0.6);
+  display: flex; align-items: flex-end;
+  backdrop-filter: blur(4px);
+}
+.overlay.hidden { display: none; }
+.bottom-sheet {
+  width: 100%; background: var(--surface);
+  border-radius: 24px 24px 0 0;
+  padding: 16px 20px max(28px, env(safe-area-inset-bottom));
+}
+.sheet-handle {
+  width: 40px; height: 4px; border-radius: 2px;
+  background: var(--border); margin: 0 auto 20px;
+}
+
+/* 버튼 */
+.btn-primary {
+  width: 100%; padding: 16px;
+  background: var(--primary); color: #fff;
+  font-size: 16px; font-weight: 700;
+  border-radius: 14px;
+  box-shadow: 0 4px 16px rgba(79,142,247,0.3);
+  transition: opacity .15s;
+}
+.btn-primary:active { opacity: .8; }
+.btn-ghost {
+  width: 100%; padding: 14px;
+  background: var(--surface2); color: var(--text-sub);
+  font-size: 15px; font-weight: 600;
+  border-radius: 14px;
+  border: 1.5px solid var(--border);
+}
+.btn-danger {
+  width: 100%; padding: 16px;
+  background: var(--danger); color: #fff;
+  font-size: 16px; font-weight: 700;
+  border-radius: 14px;
+  box-shadow: 0 4px 16px rgba(255,77,77,0.3);
+}
+
+/* 섹션 타이틀 */
+.section-title {
+  font-size: 11px; font-weight: 700; color: var(--text-sub);
+  letter-spacing: 1px; text-transform: uppercase;
+  margin: 20px 0 10px;
+}
+
+/* 뱃지 */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 700;
+  padding: 3px 10px; border-radius: 20px;
+}
+.badge-on      { background: var(--success-dim); color: var(--success); }
+.badge-off     { background: var(--surface2);    color: var(--text-sub); }
+.badge-primary { background: var(--primary-dim); color: var(--primary); }
+
+/* ══════════════════════════════════════
+   화면 1: 온보딩
+══════════════════════════════════════ */
+#screen-onboard {
+  background: var(--bg);
+  align-items: center; justify-content: center;
+  padding: 40px 28px;
+}
+.onboard-logo {
+  font-size: 72px; margin-bottom: 20px;
+  filter: drop-shadow(0 0 24px rgba(79,142,247,0.4));
+}
+.onboard-title {
+  font-size: 32px; font-weight: 900;
+  text-align: center; margin-bottom: 6px;
+}
+.onboard-title span { color: var(--primary); }
+.onboard-sub {
+  font-size: 15px; color: var(--text-sub);
+  text-align: center; margin-bottom: 48px;
+  line-height: 1.6;
+}
+.onboard-form { width: 100%; }
+.form-label {
+  font-size: 13px; font-weight: 700; color: var(--text-sub);
+  margin-bottom: 8px; display: block;
+}
+.form-input {
+  width: 100%; background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 14px; padding: 16px 18px;
+  font-size: 18px; font-weight: 700; color: var(--text);
+  margin-bottom: 16px; outline: none;
+  transition: border-color .2s;
+}
+.form-input:focus { border-color: var(--primary); }
+.onboard-note {
+  font-size: 12px; color: var(--text-sub);
+  text-align: center; margin-top: 14px; line-height: 1.5;
+}
+
+/* ══════════════════════════════════════
+   화면 2: 메인 홈
+══════════════════════════════════════ */
+#screen-main .topbar { padding-top: max(52px, env(safe-area-inset-top)); }
+.home-greeting {
+  font-size: 22px; font-weight: 900;
+}
+.home-greeting .name { color: var(--primary); }
+
+/* 전체 상태 배너 */
+.status-banner {
+  margin: 0 16px 12px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r);
+  padding: 14px 18px;
+  display: flex; align-items: center; gap: 12px;
+}
+.status-dot {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 8px var(--success);
+  flex-shrink: 0;
+  animation: blink-green 2.5s ease-in-out infinite;
+}
+@keyframes blink-green {
+  0%,100% { box-shadow: 0 0 6px var(--success); }
+  50%      { box-shadow: 0 0 16px var(--success); opacity: .7; }
+}
+.status-dot.warn { background: var(--warning); box-shadow: 0 0 8px var(--warning); animation: none; }
+.status-banner-text .sb-label { font-size: 11px; color: var(--text-sub); }
+.status-banner-text .sb-value { font-size: 14px; font-weight: 700; margin-top: 2px; }
+
+/* SOS 버튼 */
+.sos-wrap { padding: 4px 16px 12px; }
+.sos-btn {
+  width: 100%; padding: 26px 0;
+  background: var(--danger);
+  border-radius: 22px;
+  font-size: 26px; font-weight: 900; color: #fff;
+  letter-spacing: 2px;
+  box-shadow: 0 8px 28px rgba(255,77,77,0.4);
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  position: relative; overflow: hidden;
+  transition: transform .1s, box-shadow .1s;
+}
+.sos-btn::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(circle at 50% 30%, rgba(255,255,255,0.18) 0%, transparent 60%);
+}
+.sos-btn:active { transform: scale(.97); box-shadow: 0 4px 16px rgba(255,77,77,0.3); }
+.sos-hint {
+  text-align: center; font-size: 12px; color: var(--text-sub); margin-top: 6px;
+}
+
+/* 기능 그리드 */
+.feat-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 10px; padding: 0 16px;
+}
+.feat-card {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r);
+  padding: 16px 14px;
+  cursor: pointer;
+  transition: border-color .2s, background .2s;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.feat-card:active { background: var(--surface2); }
+.feat-icon  { font-size: 28px; margin-bottom: 6px; }
+.feat-name  { font-size: 14px; font-weight: 700; }
+.feat-desc  { font-size: 11px; color: var(--text-sub); line-height: 1.4; }
+
+/* 오늘 활동 요약 */
+.activity-row {
+  display: flex; gap: 10px; padding: 0 16px; margin-bottom: 10px;
+}
+.act-card {
+  flex: 1; background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r); padding: 14px 12px;
+  text-align: center;
+}
+.act-icon  { font-size: 22px; }
+.act-value { font-size: 20px; font-weight: 900; margin: 4px 0 2px; }
+.act-label { font-size: 11px; color: var(--text-sub); }
+
+/* ══════════════════════════════════════
+   화면 3: SOS 확인
+══════════════════════════════════════ */
+#screen-sos {
+  background: #1a0808;
+  align-items: center; justify-content: center;
+  padding: 40px 28px;
+}
+.sos-screen-icon {
+  font-size: 80px;
+  animation: sos-pulse 1s ease-in-out infinite;
+  filter: drop-shadow(0 0 20px rgba(255,77,77,0.5));
+}
+@keyframes sos-pulse {
+  0%,100% { transform: scale(1); }
+  50%      { transform: scale(1.08); }
+}
+.sos-screen-title {
+  font-size: 28px; font-weight: 900;
+  color: var(--danger); text-align: center; margin: 16px 0 8px;
+}
+.sos-screen-sub {
+  font-size: 15px; color: var(--text-sub);
+  text-align: center; margin-bottom: 40px; line-height: 1.6;
+}
+.sos-countdown {
+  width: 90px; height: 90px;
+  border-radius: 50%;
+  background: conic-gradient(var(--danger) var(--pct, 100%), var(--surface2) 0%);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 32px;
+}
+.sos-countdown-inner {
+  width: 70px; height: 70px; border-radius: 50%;
+  background: #1a0808;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px; font-weight: 900; color: var(--danger);
+}
+.sos-btns { width: 100%; display: flex; flex-direction: column; gap: 12px; }
+
+/* ══════════════════════════════════════
+   화면 4: 활동 현황
+══════════════════════════════════════ */
+.activity-heatmap {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  gap: 5px; margin-bottom: 16px;
+}
+.hm-cell {
+  aspect-ratio: 1; border-radius: 6px;
+  background: var(--surface2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; color: var(--text-sub);
+}
+.hm-cell.active-hi  { background: var(--primary); }
+.hm-cell.active-mid { background: rgba(79,142,247,0.45); }
+.hm-cell.active-low { background: rgba(79,142,247,0.18); }
+
+.steps-bar-wrap { margin-bottom: 10px; }
+.steps-bar-label {
+  display: flex; justify-content: space-between;
+  font-size: 12px; margin-bottom: 6px;
+}
+.steps-bar-track {
+  height: 10px; background: var(--surface2);
+  border-radius: 5px; overflow: hidden;
+}
+.steps-bar-fill {
+  height: 100%; background: linear-gradient(90deg, var(--primary), var(--success));
+  border-radius: 5px;
+  transition: width .4s ease;
+}
+
+.last-seen-card {
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: var(--r); padding: 14px 16px;
+  display: flex; align-items: center; gap: 14px;
+  margin-bottom: 10px;
+}
+.ls-icon { font-size: 28px; flex-shrink: 0; }
+.ls-text .ls-label { font-size: 12px; color: var(--text-sub); }
+.ls-text .ls-value { font-size: 16px; font-weight: 700; margin-top: 3px; }
+
+/* ══════════════════════════════════════
+   화면 5: 설정
+══════════════════════════════════════ */
+.settings-item {
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: var(--r); padding: 14px 16px;
+  display: flex; align-items: center; gap: 14px;
+  margin-bottom: 10px; cursor: pointer;
+  transition: border-color .2s;
+}
+.settings-item:active { border-color: var(--primary); }
+.si-icon {
+  width: 42px; height: 42px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; flex-shrink: 0;
+}
+.si-blue   { background: var(--primary-dim); }
+.si-red    { background: var(--danger-dim); }
+.si-green  { background: var(--success-dim); }
+.si-yellow { background: rgba(255,184,77,0.15); }
+.si-text { flex: 1; }
+.si-name  { font-size: 15px; font-weight: 700; }
+.si-desc  { font-size: 12px; color: var(--text-sub); margin-top: 2px; }
+.si-right { font-size: 13px; color: var(--text-sub); }
+.si-value { color: var(--primary); font-weight: 700; }
+
+/* 보호자 카드 */
+.guardian-card {
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: var(--r); padding: 14px 16px;
+  display: flex; align-items: center; gap: 14px;
+  margin-bottom: 10px;
+}
+.g-avatar {
+  width: 46px; height: 46px; border-radius: 50%;
+  background: var(--primary-dim);
+  border: 2px solid var(--primary);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; flex-shrink: 0;
+}
+.g-info .g-name  { font-size: 15px; font-weight: 700; }
+.g-info .g-rel   { font-size: 12px; color: var(--text-sub); margin-top: 2px; }
+.g-info .g-tel   { font-size: 13px; color: var(--primary); font-weight: 700; margin-top: 2px; }
+.g-badge {
+  margin-left: auto;
+  font-size: 10px; font-weight: 700;
+  padding: 3px 10px; border-radius: 20px;
+  background: var(--primary-dim); color: var(--primary);
+}
+
+/* 바텀시트 폼 */
+.sheet-title { font-size: 18px; font-weight: 900; margin-bottom: 20px; }
+.sheet-form-label {
+  font-size: 13px; font-weight: 700; color: var(--text-sub);
+  margin-bottom: 8px; display: block; margin-top: 14px;
+}
+.sheet-form-label:first-of-type { margin-top: 0; }
+.sheet-input {
+  width: 100%; background: var(--surface2);
+  border: 1.5px solid var(--border);
+  border-radius: 12px; padding: 14px 16px;
+  font-size: 16px; font-weight: 600; color: var(--text);
+  outline: none; transition: border-color .2s;
+}
+.sheet-input:focus { border-color: var(--primary); }
+
+/* ══════════════════════════════════════
+   알림 토스트
+══════════════════════════════════════ */
+#toast {
+  position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
+  background: var(--surface2); color: var(--text);
+  padding: 12px 24px; border-radius: 100px;
+  font-size: 14px; font-weight: 600;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  border: 1px solid var(--border);
+  z-index: 200;
+  opacity: 0; transition: opacity .3s;
+  white-space: nowrap;
+}
+#toast.show { opacity: 1; }
+
+/* ══════════════════════════════════════
+   브랜드 워터마크
+══════════════════════════════════════ */
+.watermark {
+  text-align: center; font-size: 11px; color: var(--text-sub);
+  padding: 8px 0 4px; opacity: 0.5;
+  flex-shrink: 0;
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ══════════════════════════════════════
+     화면: 온보딩
+══════════════════════════════════════ -->
+<div class="screen active" id="screen-onboard">
+  <div class="onboard-logo">🛡️</div>
+  <div class="onboard-title"><span>Body</span>guard</div>
+  <div class="onboard-sub">내 곁의 보호자<br>안전하게 시작해볼게요</div>
+  <div class="onboard-form">
+    <label class="form-label" for="input-name">이름을 입력해주세요</label>
+    <input class="form-input" id="input-name" type="text" placeholder="예) 김순자" maxlength="10"/>
+    <label class="form-label" for="input-guardian-name">보호자 이름</label>
+    <input class="form-input" id="input-guardian-name" type="text" placeholder="예) 김영희 (딸)" maxlength="15"/>
+    <label class="form-label" for="input-guardian-tel">보호자 전화번호</label>
+    <input class="form-input" id="input-guardian-tel" type="tel" placeholder="010-0000-0000" maxlength="13"/>
+    <button class="btn-primary" id="btn-onboard-start" onclick="onboardComplete()">시작하기 →</button>
+  </div>
+  <p class="onboard-note">입력하신 정보는 이 기기에만 저장되며<br>외부로 전송되지 않습니다</p>
+</div>
+
+<!-- ══════════════════════════════════════
+     화면: 메인 홈
+══════════════════════════════════════ -->
+<div class="screen" id="screen-main">
+  <div class="topbar">
+    <div>
+      <div class="home-greeting">안녕하세요, <span class="name" id="greeting-name">김순자</span>님 👋</div>
+      <div class="topbar-sub" id="greeting-date"></div>
+    </div>
+  </div>
+
+  <div class="scroll-area">
+    <div style="padding: 0 0 20px;">
+
+      <!-- 전체 상태 배너 -->
+      <div class="status-banner" style="margin: 0 16px 12px;">
+        <div class="status-dot" id="main-status-dot"></div>
+        <div class="status-banner-text">
+          <div class="sb-label">현재 상태</div>
+          <div class="sb-value" id="main-status-text">✅ 모든 보호 기능 작동 중</div>
+        </div>
+      </div>
+
+      <!-- SOS -->
+      <div class="sos-wrap">
+        <button class="sos-btn" onclick="showScreen('sos')">
+          🆘 SOS 긴급 신호
+        </button>
+        <p class="sos-hint">누르면 보호자에게 즉시 연락됩니다</p>
+      </div>
+
+      <!-- 오늘 활동 요약 -->
+      <div class="activity-row">
+        <div class="act-card">
+          <div class="act-icon">👣</div>
+          <div class="act-value" id="home-steps">0</div>
+          <div class="act-label">오늘 걸음 수</div>
+        </div>
+        <div class="act-card">
+          <div class="act-icon">⏱️</div>
+          <div class="act-value" id="home-idle">0h</div>
+          <div class="act-label">마지막 활동</div>
+        </div>
+        <div class="act-card">
+          <div class="act-icon">🔋</div>
+          <div class="act-value" id="home-battery">--%</div>
+          <div class="act-label">배터리</div>
+        </div>
+      </div>
+
+      <!-- 기능 카드 그리드 -->
+      <div class="feat-grid">
+        <div class="feat-card" onclick="showScreen('activity')">
+          <div class="feat-icon">👣</div>
+          <div class="feat-name">안부 확인</div>
+          <div class="feat-desc">활동량 · 미활동 알림</div>
+          <div class="badge badge-on" id="badge-wellness">● 작동 중</div>
+        </div>
+        <div class="feat-card" onclick="showAlert('🚧 낙상 감지는 2단계에서 추가됩니다')">
+          <div class="feat-icon">🤸</div>
+          <div class="feat-name">낙상 감지</div>
+          <div class="feat-desc">충격·자세 변화 감지</div>
+          <div class="badge badge-off">준비 중</div>
+        </div>
+        <div class="feat-card" onclick="showAlert('🚧 안심 구역은 2단계에서 추가됩니다')">
+          <div class="feat-icon">📍</div>
+          <div class="feat-name">안심 구역</div>
+          <div class="feat-desc">지오펜싱 이탈 알림</div>
+          <div class="badge badge-off">준비 중</div>
+        </div>
+        <div class="feat-card" onclick="showScreen('settings')">
+          <div class="feat-icon">⚙️</div>
+          <div class="feat-name">설정</div>
+          <div class="feat-desc">보호자 · 알림 설정</div>
+          <div class="badge badge-primary">›</div>
+        </div>
+      </div>
+
+      <div class="watermark" style="margin-top:16px;">작은앱공방 · Bodyguard v1.0</div>
+    </div>
+  </div>
+
+  <!-- 탭바 -->
+  <div class="tab-bar">
+    <div class="tab-item active" onclick="showScreen('main')">
+      <div class="tab-icon">🏠</div>홈
+    </div>
+    <div class="tab-item" onclick="showScreen('activity')">
+      <div class="tab-icon">📊</div>활동
+    </div>
+    <div class="tab-item" onclick="showScreen('settings')">
+      <div class="tab-icon">⚙️</div>설정
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     화면: SOS
+══════════════════════════════════════ -->
+<div class="screen" id="screen-sos">
+  <div class="sos-screen-icon">🆘</div>
+  <div class="sos-screen-title">SOS 신호 발송</div>
+  <div class="sos-screen-sub" id="sos-guardian-text">보호자에게 위치와 함께<br>긴급 메시지를 발송합니다</div>
+
+  <div class="sos-countdown" id="sos-ring" style="--pct:100%;">
+    <div class="sos-countdown-inner" id="sos-count">5</div>
+  </div>
+
+  <div class="sos-btns">
+    <button class="btn-danger" id="btn-sos-send" onclick="sosSend()">📞 지금 바로 신고</button>
+    <button class="btn-ghost"  onclick="sosCancel()">✅ 괜찮아요 · 취소</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     화면: 활동 현황
+══════════════════════════════════════ -->
+<div class="screen" id="screen-activity">
+  <div class="topbar">
+    <button class="back-btn" onclick="showScreen('main')">←</button>
+    <div class="topbar-title">📊 활동 현황</div>
+  </div>
+
+  <div class="scroll-area">
+    <div style="padding: 0 16px 24px;">
+
+      <!-- 마지막 활동 -->
+      <div class="last-seen-card">
+        <div class="ls-icon">📱</div>
+        <div class="ls-text">
+          <div class="ls-label">마지막 활동 감지</div>
+          <div class="ls-value" id="last-active-text">방금 전</div>
+        </div>
+      </div>
+
+      <!-- 걸음 수 바 -->
+      <div class="card" style="margin-bottom:10px;">
+        <div class="card-label">오늘 걸음 수</div>
+        <div style="display:flex; align-items:baseline; gap:6px; margin-bottom:10px;">
+          <span style="font-size:32px; font-weight:900;" id="steps-big">0</span>
+          <span style="font-size:14px; color:var(--text-sub);">걸음</span>
+          <span style="margin-left:auto; font-size:12px; color:var(--text-sub);" id="steps-goal-pct">목표의 0%</span>
+        </div>
+        <div class="steps-bar-track">
+          <div class="steps-bar-fill" id="steps-bar" style="width:0%"></div>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-top:6px; font-size:11px; color:var(--text-sub);">
+          <span>0</span><span>목표: 5,000걸음</span>
+        </div>
+      </div>
+
+      <!-- 7일 활동 히트맵 -->
+      <div class="card" style="margin-bottom:10px;">
+        <div class="card-label" style="margin-bottom:12px;">최근 7일 활동</div>
+        <div class="activity-heatmap" id="heatmap"></div>
+        <div style="display:flex; gap:8px; margin-top:10px; align-items:center; font-size:11px; color:var(--text-sub);">
+          <span>적음</span>
+          <div style="width:14px;height:14px;border-radius:3px;background:rgba(79,142,247,0.18);"></div>
+          <div style="width:14px;height:14px;border-radius:3px;background:rgba(79,142,247,0.45);"></div>
+          <div style="width:14px;height:14px;border-radius:3px;background:var(--primary);"></div>
+          <span>많음</span>
+        </div>
+      </div>
+
+      <!-- 미활동 알림 설정 -->
+      <div class="section-title">⏰ 미활동 알림</div>
+      <div class="card">
+        <div class="card-row">
+          <div>
+            <div style="font-size:15px; font-weight:700;">안부 확인 알림</div>
+            <div style="font-size:12px; color:var(--text-sub); margin-top:3px;">설정 시간 동안 활동 없으면 보호자 알림</div>
+          </div>
+          <div class="toggle" id="toggle-wellness" onclick="toggleWellness()"></div>
+        </div>
+        <div style="margin-top:14px; display:flex; gap:8px;">
+          <button class="idle-opt" data-h="6"  onclick="setIdleHours(6)"  style="flex:1;">6시간</button>
+          <button class="idle-opt" data-h="12" onclick="setIdleHours(12)" style="flex:1;">12시간</button>
+          <button class="idle-opt" data-h="24" onclick="setIdleHours(24)" style="flex:1;">24시간</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="tab-bar">
+    <div class="tab-item" onclick="showScreen('main')">
+      <div class="tab-icon">🏠</div>홈
+    </div>
+    <div class="tab-item active" onclick="showScreen('activity')">
+      <div class="tab-icon">📊</div>활동
+    </div>
+    <div class="tab-item" onclick="showScreen('settings')">
+      <div class="tab-icon">⚙️</div>설정
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     화면: 설정
+══════════════════════════════════════ -->
+<div class="screen" id="screen-settings">
+  <div class="topbar">
+    <button class="back-btn" onclick="showScreen('main')">←</button>
+    <div class="topbar-title">⚙️ 설정</div>
+  </div>
+
+  <div class="scroll-area">
+    <div style="padding: 0 16px 24px;">
+
+      <div class="section-title">👤 내 정보</div>
+      <div class="settings-item" onclick="openSheet('sheet-myinfo')">
+        <div class="si-icon si-blue">👤</div>
+        <div class="si-text">
+          <div class="si-name" id="si-myname">김순자</div>
+          <div class="si-desc">이름 수정</div>
+        </div>
+        <div class="si-right">›</div>
+      </div>
+
+      <div class="section-title">👨‍👩‍👧 보호자</div>
+      <div id="guardian-list"></div>
+      <button class="btn-ghost" style="margin-bottom:10px;" onclick="openSheet('sheet-guardian')">
+        + 보호자 추가
+      </button>
+
+      <div class="section-title">🔔 알림</div>
+      <div class="settings-item" onclick="requestNotifPermission()">
+        <div class="si-icon si-yellow">🔔</div>
+        <div class="si-text">
+          <div class="si-name">브라우저 알림 권한</div>
+          <div class="si-desc" id="si-notif-desc">탭하여 알림 허용</div>
+        </div>
+        <div class="si-right si-value" id="si-notif-status">설정</div>
+      </div>
+      <div class="settings-item">
+        <div class="si-icon si-green">📱</div>
+        <div class="si-text">
+          <div class="si-name">알림 수단</div>
+          <div class="si-desc">SMS + 브라우저 알림</div>
+        </div>
+        <div class="si-right" style="font-size:11px; color:var(--text-sub);">v2에서 카톡 추가</div>
+      </div>
+
+      <div class="section-title">🔏 데이터</div>
+      <div class="settings-item" onclick="exportData()">
+        <div class="si-icon si-blue">💾</div>
+        <div class="si-text">
+          <div class="si-name">데이터 내보내기</div>
+          <div class="si-desc">JSON 파일로 백업</div>
+        </div>
+        <div class="si-right">›</div>
+      </div>
+      <div class="settings-item" onclick="resetApp()">
+        <div class="si-icon si-red">🗑️</div>
+        <div class="si-text">
+          <div class="si-name">앱 초기화</div>
+          <div class="si-desc">모든 설정 및 데이터 삭제</div>
+        </div>
+        <div class="si-right">›</div>
+      </div>
+
+      <div class="watermark" style="margin-top:16px;">작은앱공방 · Bodyguard v1.0</div>
+    </div>
+  </div>
+
+  <div class="tab-bar">
+    <div class="tab-item" onclick="showScreen('main')">
+      <div class="tab-icon">🏠</div>홈
+    </div>
+    <div class="tab-item" onclick="showScreen('activity')">
+      <div class="tab-icon">📊</div>활동
+    </div>
+    <div class="tab-item active" onclick="showScreen('settings')">
+      <div class="tab-icon">⚙️</div>설정
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     오버레이: 내 정보 수정
+══════════════════════════════════════ -->
+<div class="overlay hidden" id="sheet-myinfo" onclick="closeSheet('sheet-myinfo')">
+  <div class="bottom-sheet" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">내 정보 수정</div>
+    <label class="sheet-form-label">이름</label>
+    <input class="sheet-input" id="edit-myname" type="text" maxlength="10"/>
+    <div style="display:flex; gap:10px; margin-top:20px;">
+      <button class="btn-ghost" style="flex:1;" onclick="closeSheet('sheet-myinfo')">취소</button>
+      <button class="btn-primary" style="flex:1;" onclick="saveMyName()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     오버레이: 보호자 추가
+══════════════════════════════════════ -->
+<div class="overlay hidden" id="sheet-guardian" onclick="closeSheet('sheet-guardian')">
+  <div class="bottom-sheet" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">보호자 추가</div>
+    <label class="sheet-form-label">이름 (관계 포함)</label>
+    <input class="sheet-input" id="g-name-input"  type="text"  placeholder="예) 김영희 (딸)" maxlength="20"/>
+    <label class="sheet-form-label">전화번호</label>
+    <input class="sheet-input" id="g-tel-input"   type="tel"   placeholder="010-0000-0000"  maxlength="13"/>
+    <div style="display:flex; gap:10px; margin-top:20px;">
+      <button class="btn-ghost" style="flex:1;" onclick="closeSheet('sheet-guardian')">취소</button>
+      <button class="btn-primary" style="flex:1;" onclick="saveGuardian()">추가</button>
+    </div>
+  </div>
+</div>
+
+<!-- 토스트 -->
+<div id="toast"></div>
+
+<!-- ══════════════════════════════════════
+     JavaScript
+══════════════════════════════════════ -->
+<script>
+'use strict';
+
+/* ── Storage 키 (앱별 prefix 필수) ── */
+var S_KEY      = 'bodyguard_settings_v1';
+var NOTIF_KEY  = 'bodyguard_notifs_v1';
+var IDB_NAME   = 'bodyguard_db';
+
+/* ── 앱 상태 ── */
+var settings = {
+  name: '',
+  guardians: [],           /* [{name, tel}] */
+  wellnessOn: true,
+  idleHours: 12,
+  stepGoal: 5000,
+  lastActiveTs: Date.now(),
+  stepsToday: 0,
+  stepHistory: []          /* 최근 7일 걸음수 배열 */
+};
+
+var sosTimer = null;
+var sosSeconds = 5;
+var wellnessTimer = null;
+
+/* ══════════════════════════════════════
+   초기화
+══════════════════════════════════════ */
+(function init() {
+  /* Apple touch icon */
+  var al = document.createElement('link');
+  al.rel = 'apple-touch-icon';
+  al.href = '/bodyguard/icons/icon-192x192.png';
+  document.head.appendChild(al);
+
+  /* 설정 로드 */
+  loadSettings();
+
+  /* 히스토리 (뒤로가기 대응) */
+  history.replaceState({ screen: 'main' }, '');
+  window.addEventListener('popstate', function() {
+    var active = document.querySelector('.screen.active');
+    if (active && active.id === 'screen-sos') { sosCancel(); return; }
+    var overlays = document.querySelectorAll('.overlay:not(.hidden)');
+    if (overlays.length > 0) {
+      overlays.forEach(function(o) { o.classList.add('hidden'); });
+      history.pushState({}, '');
+      return;
+    }
+    if (active && active.id !== 'screen-main') {
+      showScreenDirect('main');
+      history.pushState({}, '');
+    }
+  });
+
+  /* 온보딩 여부 판단 */
+  if (settings.name) {
+    showScreenDirect('main');
+    renderAll();
+    startWellnessTimer();
+  }
+
+  /* 배터리 API */
+  if (navigator.getBattery) {
+    navigator.getBattery().then(function(b) {
+      updateBattery(b.level);
+      b.addEventListener('levelchange', function() { updateBattery(b.level); });
+    });
+  }
+
+  /* 알림 상태 업데이트 */
+  updateNotifStatus();
+
+  /* 안부 확인 폴링 (1분마다) */
+  setInterval(checkWellness, 60000);
+
+  /* SW 등록 */
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('/bodyguard/sw.js').catch(function(e) {
+        console.warn('SW 등록 실패:', e);
+      });
+    });
+  }
+
+  /* 날짜 표시 */
+  updateGreetingDate();
+})();
+
+/* ══════════════════════════════════════
+   설정 저장/로드
+══════════════════════════════════════ */
+function loadSettings() {
+  try {
+    var raw = localStorage.getItem(S_KEY);
+    if (raw) {
+      var parsed = JSON.parse(raw);
+      /* 기존 키 유지하면서 병합 */
+      for (var k in parsed) { if (parsed.hasOwnProperty(k)) settings[k] = parsed[k]; }
+    }
+  } catch(e) {}
+  /* IDB 복구도 가능하지만 MVP에서는 localStorage 우선 */
+}
+
+function saveSettings() {
+  try {
+    localStorage.setItem(S_KEY, JSON.stringify(settings));
+  } catch(e) {}
+  idbSave();
+}
+
+function idbSave() {
+  try {
+    var req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = function(e) { e.target.result.createObjectStore('backups'); };
+    req.onsuccess = function(e) {
+      var tx = e.target.result.transaction('backups', 'readwrite');
+      tx.objectStore('backups').put(JSON.stringify(settings), 'latest');
+    };
+  } catch(e) {}
+}
+
+/* ══════════════════════════════════════
+   화면 전환
+══════════════════════════════════════ */
+function showScreenDirect(name) {
+  document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
+  document.getElementById('screen-' + name).classList.add('active');
+}
+
+function showScreen(name) {
+  if (name === 'sos') { startSosCountdown(); }
+  showScreenDirect(name);
+  if (name !== 'main') history.pushState({ screen: name }, '');
+  if (name === 'activity') renderActivity();
+  if (name === 'settings') renderSettings();
+  if (name === 'main') renderMain();
+}
+
+/* ══════════════════════════════════════
+   온보딩
+══════════════════════════════════════ */
+function onboardComplete() {
+  var name = document.getElementById('input-name').value.trim();
+  var gName = document.getElementById('input-guardian-name').value.trim();
+  var gTel  = document.getElementById('input-guardian-tel').value.trim();
+  if (!name) { showAlert('이름을 입력해주세요'); return; }
+  settings.name = name;
+  if (gName && gTel) {
+    settings.guardians = [{ name: gName, tel: gTel }];
+  }
+  settings.lastActiveTs = Date.now();
+  settings.stepsToday = 0;
+  settings.stepHistory = [0,0,0,0,0,0,0];
+  saveSettings();
+  showScreenDirect('main');
+  renderAll();
+  startWellnessTimer();
+  requestNotifPermission();
+  history.pushState({ screen: 'main' }, '');
+}
+
+/* ══════════════════════════════════════
+   렌더링
+══════════════════════════════════════ */
+function renderAll() {
+  renderMain();
+}
+
+function renderMain() {
+  document.getElementById('greeting-name').textContent = settings.name || '사용자';
+  document.querySelectorAll('.name').forEach(function(el) {
+    el.textContent = settings.name || '사용자';
+  });
+  updateGreetingDate();
+  updateHomeStats();
+  /* 기능 카드 뱃지 */
+  var bw = document.getElementById('badge-wellness');
+  if (bw) bw.className = 'badge ' + (settings.wellnessOn ? 'badge-on' : 'badge-off');
+  if (bw) bw.textContent = settings.wellnessOn ? '● 작동 중' : '● 꺼짐';
+}
+
+function updateGreetingDate() {
+  var days = ['일','월','화','수','목','금','토'];
+  var d = new Date();
+  var txt = d.getFullYear() + '년 ' + (d.getMonth()+1) + '월 ' + d.getDate() + '일 (' + days[d.getDay()] + ')';
+  var el = document.getElementById('greeting-date');
+  if (el) el.textContent = txt;
+}
+
+function updateHomeStats() {
+  var stepsEl   = document.getElementById('home-steps');
+  var idleEl    = document.getElementById('home-idle');
+  var battEl    = document.getElementById('home-battery');
+  if (stepsEl) stepsEl.textContent = (settings.stepsToday || 0).toLocaleString();
+
+  /* 마지막 활동 경과 시간 */
+  var mins = Math.floor((Date.now() - (settings.lastActiveTs || Date.now())) / 60000);
+  var idleStr = mins < 60 ? (mins + '분 전') : (Math.floor(mins/60) + '시간 전');
+  if (idleEl) idleEl.textContent = mins < 60 ? (mins + '분') : (Math.floor(mins/60) + 'h');
+
+  /* 상태 배너 */
+  var dot  = document.getElementById('main-status-dot');
+  var text = document.getElementById('main-status-text');
+  var hours = mins / 60;
+  if (dot && text) {
+    if (settings.wellnessOn && hours >= settings.idleHours) {
+      dot.className = 'status-dot warn';
+      text.textContent = '⚠️ ' + Math.floor(hours) + '시간째 활동이 없습니다';
+    } else {
+      dot.className = 'status-dot';
+      text.textContent = '✅ 모든 보호 기능 작동 중';
+    }
+  }
+
+  /* 마지막 활동 (활동 화면) */
+  var laEl = document.getElementById('last-active-text');
+  if (laEl) laEl.textContent = idleStr;
+}
+
+function updateBattery(level) {
+  var pct = Math.round(level * 100);
+  var el = document.getElementById('home-battery');
+  if (el) el.textContent = pct + '%';
+}
+
+function renderActivity() {
+  /* 걸음수 바 */
+  var steps = settings.stepsToday || 0;
+  var goal  = settings.stepGoal || 5000;
+  var pct   = Math.min(100, Math.round(steps / goal * 100));
+  var bigEl = document.getElementById('steps-big');
+  var barEl = document.getElementById('steps-bar');
+  var pctEl = document.getElementById('steps-goal-pct');
+  if (bigEl) bigEl.textContent = steps.toLocaleString();
+  if (barEl) barEl.style.width = pct + '%';
+  if (pctEl) pctEl.textContent = '목표의 ' + pct + '%';
+
+  /* 히트맵 */
+  var hm = document.getElementById('heatmap');
+  if (hm) {
+    hm.innerHTML = '';
+    var hist = settings.stepHistory || [0,0,0,0,0,0,0];
+    var days = ['일','월','화','수','목','금','토'];
+    var today = new Date();
+    for (var i = 6; i >= 0; i--) {
+      var d = new Date(today); d.setDate(d.getDate() - i);
+      var cell = document.createElement('div');
+      var s = hist[6 - i] || 0;
+      var cls = 'hm-cell';
+      if (s >= 7000) cls += ' active-hi';
+      else if (s >= 3000) cls += ' active-mid';
+      else if (s > 0) cls += ' active-low';
+      cell.className = cls;
+      cell.textContent = days[d.getDay()];
+      hm.appendChild(cell);
+    }
+  }
+
+  /* 토글/버튼 상태 */
+  var tog = document.getElementById('toggle-wellness');
+  if (tog) tog.className = 'toggle' + (settings.wellnessOn ? '' : ' off');
+  updateIdleOptButtons();
+
+  /* 마지막 활동 */
+  var mins = Math.floor((Date.now() - (settings.lastActiveTs || Date.now())) / 60000);
+  var laEl = document.getElementById('last-active-text');
+  if (laEl) laEl.textContent = mins < 1 ? '방금 전' : (mins < 60 ? mins + '분 전' : Math.floor(mins/60) + '시간 전');
+}
+
+function renderSettings() {
+  var nameEl = document.getElementById('si-myname');
+  if (nameEl) nameEl.textContent = settings.name || '(미설정)';
+
+  /* 보호자 목록 */
+  var list = document.getElementById('guardian-list');
+  if (list) {
+    list.innerHTML = '';
+    (settings.guardians || []).forEach(function(g, i) {
+      var div = document.createElement('div');
+      div.className = 'guardian-card';
+      div.innerHTML =
+        '<div class="g-avatar">👤</div>' +
+        '<div class="g-info">' +
+          '<div class="g-name">' + esc(g.name) + '</div>' +
+          '<div class="g-tel">' + esc(g.tel) + '</div>' +
+        '</div>' +
+        '<div class="g-badge">' + (i === 0 ? '1순위' : (i+1)+'순위') + '</div>' +
+        '<button onclick="removeGuardian(' + i + ')" style="background:none;border:none;color:var(--text-sub);font-size:18px;margin-left:6px;padding:4px;">✕</button>';
+      list.appendChild(div);
+    });
+  }
+  updateNotifStatus();
+}
+
+/* ══════════════════════════════════════
+   SOS
+══════════════════════════════════════ */
+function startSosCountdown() {
+  sosSeconds = 5;
+  updateSosRing();
+  clearInterval(sosTimer);
+  sosTimer = setInterval(function() {
+    sosSeconds--;
+    updateSosRing();
+    if (sosSeconds <= 0) {
+      clearInterval(sosTimer);
+      sosSend();
+    }
+  }, 1000);
+
+  /* 보호자 이름 표시 */
+  var g = (settings.guardians || [])[0];
+  var txt = g ? (esc(g.name) + '님에게 위치와 함께<br>긴급 메시지를 발송합니다') : '등록된 보호자에게<br>긴급 메시지를 발송합니다';
+  document.getElementById('sos-guardian-text').innerHTML = txt;
+}
+
+function updateSosRing() {
+  var el = document.getElementById('sos-count');
+  var ring = document.getElementById('sos-ring');
+  if (el) el.textContent = sosSeconds > 0 ? sosSeconds : '📞';
+  if (ring) ring.style.setProperty('--pct', Math.round(sosSeconds / 5 * 100) + '%');
+}
+
+function sosSend() {
+  clearInterval(sosTimer);
+  var g = (settings.guardians || [])[0];
+  if (g && g.tel) {
+    /* SMS 딥링크 */
+    var msg = encodeURIComponent('[Bodyguard] ' + (settings.name || '사용자') + '님이 SOS 신호를 보냈습니다. 즉시 확인해주세요.');
+    window.location.href = 'sms:' + g.tel + '?body=' + msg;
+  }
+  /* 브라우저 알림 */
+  sendBrowserNotif('🆘 SOS 발송됨', (settings.name || '사용자') + '님의 긴급 신호가 보호자에게 전달되었습니다.');
+  showAlert('📞 보호자에게 SOS 메시지를 발송했습니다');
+  showScreenDirect('main');
+}
+
+function sosCancel() {
+  clearInterval(sosTimer);
+  showScreenDirect('main');
+}
+
+/* ══════════════════════════════════════
+   안부 확인 (Wellness)
+══════════════════════════════════════ */
+function startWellnessTimer() {
+  /* 활동 감지: 화면 터치 → lastActiveTs 갱신 */
+  document.addEventListener('touchstart', function() {
+    settings.lastActiveTs = Date.now();
+    saveSettings();
+  }, { passive: true });
+  document.addEventListener('click', function() {
+    settings.lastActiveTs = Date.now();
+    saveSettings();
+  });
+}
+
+function checkWellness() {
+  if (!settings.wellnessOn) return;
+  var mins = (Date.now() - (settings.lastActiveTs || Date.now())) / 60000;
+  if (mins >= settings.idleHours * 60) {
+    var g = (settings.guardians || [])[0];
+    var msg = (settings.name || '사용자') + '님이 ' + settings.idleHours + '시간 이상 활동이 없습니다. 확인이 필요합니다.';
+    sendBrowserNotif('⚠️ 안부 확인 필요', msg);
+    if (g && g.tel) {
+      /* 실 배포에서는 서버 API 연동 필요. MVP에서는 SMS 딥링크 */
+      console.log('[Bodyguard] 안부 알림 → ' + g.tel + ': ' + msg);
+    }
+  }
+  updateHomeStats();
+}
+
+/* ══════════════════════════════════════
+   토글 / 설정
+══════════════════════════════════════ */
+function toggleWellness() {
+  settings.wellnessOn = !settings.wellnessOn;
+  saveSettings();
+  var tog = document.getElementById('toggle-wellness');
+  if (tog) tog.className = 'toggle' + (settings.wellnessOn ? '' : ' off');
+  renderMain();
+  showAlert(settings.wellnessOn ? '✅ 안부 확인 켜짐' : '🔕 안부 확인 꺼짐');
+}
+
+function setIdleHours(h) {
+  settings.idleHours = h;
+  saveSettings();
+  updateIdleOptButtons();
+  showAlert(h + '시간으로 설정되었습니다');
+}
+
+function updateIdleOptButtons() {
+  document.querySelectorAll('.idle-opt').forEach(function(btn) {
+    var h = parseInt(btn.getAttribute('data-h'));
+    btn.style.cssText = 'flex:1; padding:10px 0; border-radius:10px; font-size:13px; font-weight:700; cursor:pointer; transition: background .2s;';
+    if (h === settings.idleHours) {
+      btn.style.background = 'var(--primary-dim)';
+      btn.style.color = 'var(--primary)';
+      btn.style.border = '1.5px solid var(--primary)';
+    } else {
+      btn.style.background = 'var(--surface2)';
+      btn.style.color = 'var(--text-sub)';
+      btn.style.border = '1.5px solid var(--border)';
+    }
+  });
+}
+
+/* ══════════════════════════════════════
+   보호자 관리
+══════════════════════════════════════ */
+function saveGuardian() {
+  var name = document.getElementById('g-name-input').value.trim();
+  var tel  = document.getElementById('g-tel-input').value.trim();
+  if (!name || !tel) { showAlert('이름과 전화번호를 모두 입력해주세요'); return; }
+  if (!settings.guardians) settings.guardians = [];
+  settings.guardians.push({ name: name, tel: tel });
+  saveSettings();
+  closeSheet('sheet-guardian');
+  document.getElementById('g-name-input').value = '';
+  document.getElementById('g-tel-input').value = '';
+  renderSettings();
+  showAlert('✅ 보호자가 추가되었습니다');
+}
+
+function removeGuardian(idx) {
+  if (!confirm(esc(settings.guardians[idx].name) + '님을 보호자 목록에서 삭제할까요?')) return;
+  settings.guardians.splice(idx, 1);
+  saveSettings();
+  renderSettings();
+}
+
+/* ══════════════════════════════════════
+   내 정보 수정
+══════════════════════════════════════ */
+function openSheet(id) {
+  if (id === 'sheet-myinfo') {
+    document.getElementById('edit-myname').value = settings.name || '';
+  }
+  document.getElementById(id).classList.remove('hidden');
+  history.pushState({ overlay: id }, '');
+}
+function closeSheet(id) {
+  document.getElementById(id).classList.add('hidden');
+}
+function saveMyName() {
+  var v = document.getElementById('edit-myname').value.trim();
+  if (!v) { showAlert('이름을 입력해주세요'); return; }
+  settings.name = v;
+  saveSettings();
+  closeSheet('sheet-myinfo');
+  renderMain();
+  renderSettings();
+  showAlert('✅ 이름이 저장되었습니다');
+}
+
+/* ══════════════════════════════════════
+   알림
+══════════════════════════════════════ */
+function requestNotifPermission() {
+  if (!('Notification' in window)) {
+    showAlert('이 브라우저는 알림을 지원하지 않습니다');
+    return;
+  }
+  if (Notification.permission === 'granted') {
+    showAlert('✅ 알림이 이미 허용되어 있습니다');
+    return;
+  }
+  Notification.requestPermission().then(function(result) {
+    updateNotifStatus();
+    if (result === 'granted') showAlert('✅ 알림이 허용되었습니다');
+    else showAlert('알림이 차단되었습니다. 브라우저 설정에서 허용해주세요');
+  });
+}
+
+function sendBrowserNotif(title, body) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  try {
+    new Notification(title, {
+      body: body,
+      icon: '/bodyguard/icons/icon-192x192.png',
+      vibrate: [200, 100, 200]
+    });
+  } catch(e) {
+    /* SW 방식으로 폴백 */
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'SCHEDULE_NOTIFICATION',
+        title: title, body: body,
+        notifTime: Date.now()
+      });
+    }
+  }
+}
+
+function updateNotifStatus() {
+  var descEl   = document.getElementById('si-notif-desc');
+  var statusEl = document.getElementById('si-notif-status');
+  if (!descEl || !statusEl) return;
+  if (!('Notification' in window)) {
+    descEl.textContent = '이 브라우저에서 지원되지 않음';
+    statusEl.textContent = '미지원';
+    return;
+  }
+  if (Notification.permission === 'granted') {
+    descEl.textContent = '알림이 허용되어 있습니다';
+    statusEl.textContent = '✅ 허용';
+    statusEl.style.color = 'var(--success)';
+  } else if (Notification.permission === 'denied') {
+    descEl.textContent = '브라우저 설정에서 허용해주세요';
+    statusEl.textContent = '차단됨';
+    statusEl.style.color = 'var(--danger)';
+  } else {
+    descEl.textContent = '탭하여 알림 허용';
+    statusEl.textContent = '설정';
+    statusEl.style.color = 'var(--primary)';
+  }
+}
+
+/* ══════════════════════════════════════
+   데이터 내보내기 / 초기화
+══════════════════════════════════════ */
+function exportData() {
+  var data = {
+    app: 'Bodyguard', version: '1.0',
+    exportedAt: new Date().toLocaleString('ko-KR'),
+    settings: settings
+  };
+  var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  var url  = URL.createObjectURL(blob);
+  var a    = document.createElement('a');
+  a.href = url;
+  a.download = 'bodyguard_backup_' + new Date().toISOString().slice(0, 10) + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function resetApp() {
+  if (!confirm('모든 설정과 데이터가 삭제됩니다.\n정말 초기화하시겠습니까?')) return;
+  try { localStorage.removeItem(S_KEY); } catch(e) {}
+  try { localStorage.removeItem(NOTIF_KEY); } catch(e) {}
+  location.reload();
+}
+
+/* ══════════════════════════════════════
+   공통 유틸
+══════════════════════════════════════ */
+function esc(s) {
+  if (!s) return '';
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+var toastTimer = null;
+function showAlert(msg) {
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(function() { el.classList.remove('show'); }, 2800);
+}
+</script>
+</body>
+</html>
