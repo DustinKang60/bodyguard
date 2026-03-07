@@ -12,6 +12,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap"/>
   <title>Bodyguard · 내 곁의 보호자</title>
+  <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js"
+          integrity="sha384-TiCUE00h649CAMonG018J2ujOgDKW/kVWlChEuu4jK2vxfAAD0eZxzCKakxg55G4"
+          crossorigin="anonymous"></script>
 <style>
 /* ── 리셋 & 전역 ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -827,7 +830,7 @@ body.light #screen-sos { background: #fff0f0; }
     <label class="sheet-form-label">카카오톡 ID <span style="font-weight:400; color:var(--text-sub);">(선택)</span></label>
     <input class="sheet-input" id="g-kakao-input" type="text" placeholder="카카오톡 아이디 입력" maxlength="30"/>
     <div style="font-size:11px; color:var(--text-sub); margin-top:6px;">
-      카톡 ID 등록 시 SOS 발송 때 카카오톡으로도 연결됩니다
+      카톡 ID 등록 시 SOS·위치·안부 알림을 카카오톡으로 자동 발송합니다
     </div>
     <div style="display:flex; gap:10px; margin-top:20px;">
       <button class="btn-ghost" style="flex:1;" onclick="closeSheet('sheet-guardian')">취소</button>
@@ -853,7 +856,7 @@ body.light #screen-sos { background: #fff0f0; }
     <label class="sheet-form-label">카카오톡 ID <span style="font-weight:400; color:var(--text-sub);">(선택)</span></label>
     <input class="sheet-input" id="eg-kakao-input" type="text" placeholder="카카오톡 아이디 입력" maxlength="30"/>
     <div style="font-size:11px; color:var(--text-sub); margin-top:6px; margin-bottom:20px;">
-      카톡 ID 등록 시 SOS 발송 때 카카오톡으로도 연결됩니다
+      카톡 ID 등록 시 SOS·위치·안부 알림을 카카오톡으로 자동 발송합니다
     </div>
     <div style="display:flex; gap:10px;">
       <button class="btn-ghost"   style="flex:1;" onclick="closeSheet('sheet-edit-guardian')">취소</button>
@@ -874,6 +877,37 @@ var NOTIF_KEY  = 'bodyguard_notifs_v1';
 var IDB_NAME   = 'bodyguard_db';
 
 /* ── 앱 상태 ── */
+/* ══════════════════════════════════════
+   카카오 SDK 초기화
+══════════════════════════════════════ */
+var KAKAO_JS_KEY = '9340ebea6ef873e084a5f21f7b0d7da1';
+function initKakao() {
+  if (typeof Kakao !== 'undefined' && !Kakao.isInitialized()) {
+    Kakao.init(KAKAO_JS_KEY);
+  }
+}
+
+/* 카카오톡으로 텍스트 메시지 공유 (나에게 공유 → 받은 메시지함에서 보호자에게 전달)
+   kakaoId가 있으면 보호자 ID로 바로 채팅창 열기 시도 */
+function kakaoShare(msg, title, fallback) {
+  initKakao();
+  if (typeof Kakao === 'undefined' || !Kakao.isInitialized()) {
+    fallback && fallback();
+    return;
+  }
+  try {
+    Kakao.Share.sendDefault({
+      objectType: 'text',
+      text: msg,
+      link: { mobileWebUrl: 'https://dustinkang60.github.io/bodyguard/', webUrl: 'https://dustinkang60.github.io/bodyguard/' },
+      buttonTitle: title || '확인하기'
+    });
+  } catch(e) {
+    console.warn('[Bodyguard] 카카오 공유 오류:', e);
+    fallback && fallback();
+  }
+}
+
 var settings = {
   name: '',
   guardians: [],           /* [{name, tel, kakao}] */
@@ -899,6 +933,9 @@ var wellnessTimer = null;
   al.rel = 'apple-touch-icon';
   al.href = '/bodyguard/icons/icon-192x192.png';
   document.head.appendChild(al);
+
+  /* 카카오 SDK 초기화 */
+  initKakao();
 
   /* 설정 로드 */
   loadSettings();
@@ -1228,16 +1265,17 @@ function sosSend() {
 function dispatchSos(g, msg) {
   if (g) {
     if (g.kakao) {
-      /* 카카오톡 열기 + 메시지 자동 입력 (전송 버튼 1회 탭 필요) */
-      window.location.href = 'kakaolink://talk/chat?text=' + encodeURIComponent(msg);
+      /* 카카오 SDK로 나에게 공유 (자동 전송) */
+      kakaoShare(msg, '🆘 SOS 긴급 신호', function() {
+        /* SDK 실패 시 SMS 폴백 */
+        if (g.tel) window.location.href = 'sms:' + g.tel + '?body=' + encodeURIComponent(msg);
+      });
     } else if (g.tel) {
-      /* 카카오ID 없으면 SMS */
       window.location.href = 'sms:' + g.tel + '?body=' + encodeURIComponent(msg);
     }
   }
-  /* 브라우저 알림 */
   sendBrowserNotif('🆘 SOS 발송됨', (settings.name || '사용자') + '님의 긴급 신호가 보호자에게 전달되었습니다.');
-  showAlert('📞 카톡이 열리면 전송 버튼을 한 번 눌러주세요');
+  showAlert('📞 SOS 신호를 발송했습니다');
   showScreenDirect('main');
 }
 
@@ -1282,13 +1320,13 @@ function sendMyLocation() {
 
 function dispatchLocation(g, msg) {
   if (g.kakao) {
-    /* 카카오톡 열기 + 메시지 자동 입력 (전송 버튼 1회 탭 필요) */
-    window.location.href = 'kakaolink://talk/chat?text=' + encodeURIComponent(msg);
+    kakaoShare(msg, '📍 현재 위치 알림', function() {
+      if (g.tel) window.location.href = 'sms:' + g.tel + '?body=' + encodeURIComponent(msg);
+    });
   } else if (g.tel) {
-    /* 카카오ID 없으면 SMS */
     window.location.href = 'sms:' + g.tel + '?body=' + encodeURIComponent(msg);
   }
-  showAlert('📍 카톡이 열리면 전송 버튼을 한 번 눌러주세요');
+  showAlert('📍 위치를 보호자에게 전송했습니다');
 }
 
 /* ══════════════════════════════════════
@@ -1322,11 +1360,17 @@ function checkWellness() {
   var mins = (Date.now() - (settings.lastActiveTs || Date.now())) / 60000;
   if (mins >= settings.idleHours * 60) {
     var g = (settings.guardians || [])[0];
-    var msg = (settings.name || '사용자') + '님이 ' + settings.idleHours + '시간 이상 활동이 없습니다. 확인이 필요합니다.';
+    var userName = settings.name || '사용자';
+    var msg = '[Bodyguard] ⚠️ ' + userName + '님이 ' + settings.idleHours + '시간 이상 활동이 없습니다.\n확인이 필요합니다.\n\n🕐 ' + new Date().toLocaleString('ko-KR');
     sendBrowserNotif('⚠️ 안부 확인 필요', msg);
-    if (g && g.tel) {
-      /* 실 배포에서는 서버 API 연동 필요. MVP에서는 SMS 딥링크 */
-      console.log('[Bodyguard] 안부 알림 → ' + g.tel + ': ' + msg);
+    if (g) {
+      if (g.kakao) {
+        kakaoShare(msg, '⚠️ 안부 확인 요청', function() {
+          if (g.tel) window.location.href = 'sms:' + g.tel + '?body=' + encodeURIComponent(msg);
+        });
+      } else if (g.tel) {
+        window.location.href = 'sms:' + g.tel + '?body=' + encodeURIComponent(msg);
+      }
     }
   }
   updateHomeStats();
