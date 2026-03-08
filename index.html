@@ -1196,7 +1196,15 @@ function renderSettings() {
   if (list) {
     list.innerHTML = '';
     (settings.guardians || []).forEach(function(g, i) {
-      '</div>' +
+      var div = document.createElement('div');
+      div.className = 'guardian-card';
+      div.style.flexWrap = 'wrap';
+      div.innerHTML =
+        '<div class="g-avatar">👤</div>' +
+        '<div class="g-info" style="flex:1;">' +
+          '<div class="g-name">' + esc(g.name) + '</div>' +
+          '<div class="g-tel">' + esc(g.tel) + '</div>' +
+        '</div>' +
         '<div style="display:flex;gap:6px;align-items:center;">' +
           '<button onclick="openEditGuardian(' + i + ')" style="background:var(--primary-dim);border:none;color:var(--primary);font-size:12px;font-weight:700;padding:6px 12px;border-radius:8px;cursor:pointer;">수정</button>' +
           '<button onclick="removeGuardian(' + i + ')" style="background:none;border:none;color:var(--text-sub);font-size:20px;padding:4px;cursor:pointer;">✕</button>' +
@@ -1321,11 +1329,11 @@ function sendMyLocation() {
 }
 
 function dispatchLocation(g, msg) {
-  if (g && g.tel) {
-    window.location.href = 'sms:' + g.tel + '?body=' + encodeURIComponent(msg);
-    saveLog('location', esc(g.name) + '님께 SMS 발송');
-  }
-  showAlert('📍 위치를 보호자에게 전송했습니다');
+  kakaoShare(msg, '📍 현재 위치 알림', function() {
+    if (g && g.tel) window.location.href = 'sms:' + g.tel + '?body=' + encodeURIComponent(msg);
+  });
+  saveLog('location', esc(g.name) + '님께 카카오톡으로 발송');
+  showAlert('📲 카카오톡 공유창에서 보호자를 선택해주세요');
 }
 
 /* ══════════════════════════════════════
