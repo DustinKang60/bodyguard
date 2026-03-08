@@ -525,8 +525,6 @@ body.light #screen-sos { background: #fff0f0; }
     <input class="form-input" id="input-guardian-name" type="text" placeholder="예) 김영희 (딸)" maxlength="15"/>
     <label class="form-label" for="input-guardian-tel">보호자 전화번호</label>
     <input class="form-input" id="input-guardian-tel" type="tel" placeholder="010-0000-0000" maxlength="13"/>
-    <label class="form-label" for="input-guardian-kakao">보호자 카카오톡 ID <span style="font-weight:400; color:var(--text-sub);">(선택)</span></label>
-    <input class="form-input" id="input-guardian-kakao" type="text" placeholder="카카오톡 아이디 입력" maxlength="30"/>
     <button class="btn-primary" id="btn-onboard-start" onclick="onboardComplete()">시작하기 →</button>
   </div>
   <p class="onboard-note">입력하신 정보는 이 기기에만 저장되며<br>외부로 전송되지 않습니다</p>
@@ -819,11 +817,6 @@ body.light #screen-sos { background: #fff0f0; }
     <input class="sheet-input" id="g-name-input" type="text" placeholder="예) 김영희 (딸)" maxlength="20"/>
     <label class="sheet-form-label">전화번호 (SMS 발송용)</label>
     <input class="sheet-input" id="g-tel-input"  type="tel"  placeholder="010-0000-0000" maxlength="13"/>
-    <label class="sheet-form-label">카카오톡 ID <span style="font-weight:400; color:var(--text-sub);">(선택)</span></label>
-    <input class="sheet-input" id="g-kakao-input" type="text" placeholder="카카오톡 아이디 입력" maxlength="30"/>
-    <div style="font-size:11px; color:var(--text-sub); margin-top:6px;">
-      카톡 ID 등록 시 SOS·위치·안부 알림을 카카오톡으로 자동 발송합니다
-    </div>
     <div style="display:flex; gap:10px; margin-top:20px;">
       <button class="btn-ghost" style="flex:1;" onclick="closeSheet('sheet-guardian')">취소</button>
       <button class="btn-primary" style="flex:1;" onclick="saveGuardian()">추가</button>
@@ -845,11 +838,6 @@ body.light #screen-sos { background: #fff0f0; }
     <input class="sheet-input" id="eg-name-input"  type="text" maxlength="20"/>
     <label class="sheet-form-label">전화번호 (SMS 발송용)</label>
     <input class="sheet-input" id="eg-tel-input"   type="tel"  maxlength="13"/>
-    <label class="sheet-form-label">카카오톡 ID <span style="font-weight:400; color:var(--text-sub);">(선택)</span></label>
-    <input class="sheet-input" id="eg-kakao-input" type="text" placeholder="카카오톡 아이디 입력" maxlength="30"/>
-    <div style="font-size:11px; color:var(--text-sub); margin-top:6px; margin-bottom:20px;">
-      카톡 ID 등록 시 SOS·위치·안부 알림을 카카오톡으로 자동 발송합니다
-    </div>
     <div style="display:flex; gap:10px;">
       <button class="btn-ghost"   style="flex:1;" onclick="closeSheet('sheet-edit-guardian')">취소</button>
       <button class="btn-primary" style="flex:1;" onclick="saveEditGuardian()">저장</button>
@@ -880,7 +868,7 @@ function initKakao() {
 }
 
 /* 카카오톡으로 텍스트 메시지 공유 (나에게 공유 → 받은 메시지함에서 보호자에게 전달)
-   kakaoId가 있으면 보호자 ID로 바로 채팅창 열기 시도 */
+   카카오톡 공유창을 열어 메시지를 공유 */
 function kakaoShare(msg, title, fallback) {
   initKakao();
   if (typeof Kakao === 'undefined' || !Kakao.isInitialized()) {
@@ -902,7 +890,7 @@ function kakaoShare(msg, title, fallback) {
 
 var settings = {
   name: '',
-  guardians: [],           /* [{name, tel, kakao}] */
+  guardians: [],           /* [{name, tel}] */
   wellnessOn: true,
   idleHours: 12,
   stepGoal: 5000,
@@ -985,6 +973,18 @@ var wellnessTimer = null;
 
   /* 날짜 표시 */
   updateGreetingDate();
+
+  /* 앱 열기 / 화면 복귀 시 lastActiveTs 갱신 */
+  function refreshActiveTs() {
+    settings.lastActiveTs = Date.now();
+    saveSettings();
+    updateHomeStats();
+  }
+  refreshActiveTs(); /* 앱 최초 실행 시 */
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible') refreshActiveTs();
+  });
+  window.addEventListener('focus', refreshActiveTs);
 })();
 
 /* ══════════════════════════════════════
@@ -1044,11 +1044,10 @@ function onboardComplete() {
   var name   = document.getElementById('input-name').value.trim();
   var gName  = document.getElementById('input-guardian-name').value.trim();
   var gTel   = document.getElementById('input-guardian-tel').value.trim();
-  var gKakao = document.getElementById('input-guardian-kakao').value.trim();
   if (!name) { showAlert('이름을 입력해주세요'); return; }
   settings.name = name;
   if (gName && gTel) {
-    settings.guardians = [{ name: gName, tel: gTel, kakao: gKakao }];
+    settings.guardians = [{ name: gName, tel: gTel }];
   }
   settings.lastActiveTs = Date.now();
   settings.stepsToday = 0;
@@ -1197,19 +1196,7 @@ function renderSettings() {
   if (list) {
     list.innerHTML = '';
     (settings.guardians || []).forEach(function(g, i) {
-      var kakaoTag = g.kakao
-        ? '<div style="font-size:11px; color:var(--primary); margin-top:2px;">💬 카톡: ' + esc(g.kakao) + '</div>'
-        : '<div style="font-size:11px; color:var(--text-sub); margin-top:2px;">💬 카톡 ID 미등록 (SMS만 발송)</div>';
-      var div = document.createElement('div');
-      div.className = 'guardian-card';
-      div.style.flexWrap = 'wrap';
-      div.innerHTML =
-        '<div class="g-avatar">👤</div>' +
-        '<div class="g-info" style="flex:1;">' +
-          '<div class="g-name">' + esc(g.name) + '</div>' +
-          '<div class="g-tel">' + esc(g.tel) + '</div>' +
-          kakaoTag +
-        '</div>' +
+      '</div>' +
         '<div style="display:flex;gap:6px;align-items:center;">' +
           '<button onclick="openEditGuardian(' + i + ')" style="background:var(--primary-dim);border:none;color:var(--primary);font-size:12px;font-weight:700;padding:6px 12px;border-radius:8px;cursor:pointer;">수정</button>' +
           '<button onclick="removeGuardian(' + i + ')" style="background:none;border:none;color:var(--text-sub);font-size:20px;padding:4px;cursor:pointer;">✕</button>' +
@@ -1283,22 +1270,14 @@ function sosSend() {
 }
 
 function dispatchSos(g, msg) {
-  var guardian = g ? esc(g.name) : '보호자';
-  if (g) {
-    if (g.kakao) {
-      kakaoShare(msg, '🆘 SOS 긴급 신호', function() {
-        if (g.tel) window.location.href = 'sms:' + g.tel + '?body=' + encodeURIComponent(msg);
-      });
-      saveLog('sos', guardian + '님께 카카오톡으로 발송');
-    } else if (g.tel) {
-      window.location.href = 'sms:' + g.tel + '?body=' + encodeURIComponent(msg);
-      saveLog('sos', guardian + '님께 SMS 발송');
-    }
+  if (g && g.tel) {
+    window.location.href = 'sms:' + g.tel + '?body=' + encodeURIComponent(msg);
+    saveLog('sos', esc(g.name) + '님께 SMS 발송');
   } else {
     saveLog('sos', '보호자 미등록 상태');
   }
   sendBrowserNotif('🆘 SOS 발송됨', (settings.name || '사용자') + '님의 긴급 신호가 보호자에게 전달되었습니다.');
-  showAlert(g && g.kakao ? '📲 카카오톡 공유창에서 보호자를 선택해주세요' : '📞 SOS 신호를 발송했습니다');
+  showAlert('📞 SOS 신호를 발송했습니다');
   showScreenDirect('main');
 }
 
@@ -1342,18 +1321,11 @@ function sendMyLocation() {
 }
 
 function dispatchLocation(g, msg) {
-  var guardian = g ? esc(g.name) : '보호자';
-  if (g.kakao) {
-    kakaoShare(msg, '📍 현재 위치 알림', function() {
-      if (g.tel) window.location.href = 'sms:' + g.tel + '?body=' + encodeURIComponent(msg);
-    });
-    saveLog('location', guardian + '님께 카카오톡으로 발송');
-    showAlert('📲 카카오톡 공유창에서 보호자를 선택해주세요');
-  } else if (g.tel) {
+  if (g && g.tel) {
     window.location.href = 'sms:' + g.tel + '?body=' + encodeURIComponent(msg);
-    saveLog('location', guardian + '님께 SMS 발송');
-    showAlert('📍 위치를 보호자에게 전송했습니다');
+    saveLog('location', esc(g.name) + '님께 SMS 발송');
   }
+  showAlert('📍 위치를 보호자에게 전송했습니다');
 }
 
 /* ══════════════════════════════════════
@@ -1405,16 +1377,9 @@ function checkWellness() {
     var userName = settings.name || '사용자';
     var msg = '[Bodyguard] ⚠️ ' + userName + '님이 ' + settings.idleHours + '시간 이상 활동이 없습니다.\n확인이 필요합니다.\n\n🕐 ' + new Date().toLocaleString('ko-KR');
     sendBrowserNotif('⚠️ 안부 확인 필요', msg);
-    if (g) {
-      if (g.kakao) {
-        kakaoShare(msg, '⚠️ 안부 확인 요청', function() {
-          if (g.tel) window.location.href = 'sms:' + g.tel + '?body=' + encodeURIComponent(msg);
-        });
-        saveLog('wellness', esc(g.name) + '님께 카카오톡으로 발송');
-      } else if (g.tel) {
-        window.location.href = 'sms:' + g.tel + '?body=' + encodeURIComponent(msg);
-        saveLog('wellness', esc(g.name) + '님께 SMS 발송');
-      }
+    if (g && g.tel) {
+      window.location.href = 'sms:' + g.tel + '?body=' + encodeURIComponent(msg);
+      saveLog('wellness', esc(g.name) + '님께 SMS 발송');
     }
   }
   updateHomeStats();
@@ -1461,15 +1426,13 @@ function updateIdleOptButtons() {
 function saveGuardian() {
   var name  = document.getElementById('g-name-input').value.trim();
   var tel   = document.getElementById('g-tel-input').value.trim();
-  var kakao = document.getElementById('g-kakao-input').value.trim();
   if (!name || !tel) { showAlert('이름과 전화번호를 모두 입력해주세요'); return; }
   if (!settings.guardians) settings.guardians = [];
-  settings.guardians.push({ name: name, tel: tel, kakao: kakao });
+  settings.guardians.push({ name: name, tel: tel });
   saveSettings();
   closeSheet('sheet-guardian');
   document.getElementById('g-name-input').value  = '';
   document.getElementById('g-tel-input').value   = '';
-  document.getElementById('g-kakao-input').value = '';
   renderSettings();
   showAlert('✅ 보호자가 추가되었습니다');
 }
@@ -1488,7 +1451,6 @@ function openEditGuardian(idx) {
   var g = settings.guardians[idx];
   document.getElementById('eg-name-input').value  = g.name  || '';
   document.getElementById('eg-tel-input').value   = g.tel   || '';
-  document.getElementById('eg-kakao-input').value = g.kakao || '';
   document.getElementById('sheet-edit-guardian').classList.remove('hidden');
   history.pushState({ overlay: 'sheet-edit-guardian' }, '');
 }
@@ -1497,9 +1459,8 @@ function saveEditGuardian() {
   var idx   = editGuardianIdx;
   var name  = document.getElementById('eg-name-input').value.trim();
   var tel   = document.getElementById('eg-tel-input').value.trim();
-  var kakao = document.getElementById('eg-kakao-input').value.trim();
   if (!name || !tel) { showAlert('이름과 전화번호를 모두 입력해주세요'); return; }
-  settings.guardians[idx] = { name: name, tel: tel, kakao: kakao };
+  settings.guardians[idx] = { name: name, tel: tel };
   saveSettings();
   closeSheet('sheet-edit-guardian');
   renderSettings();
@@ -1630,7 +1591,7 @@ function resetApp() {
   function goOnboard() {
     showScreenDirect('onboard');
     /* 입력 필드 초기화 */
-    ['input-name','input-guardian-name','input-guardian-tel','input-guardian-kakao'].forEach(function(id) {
+    ['input-name','input-guardian-name','input-guardian-tel'].forEach(function(id) {
       var el = document.getElementById(id);
       if (el) el.value = '';
     });
