@@ -1086,6 +1086,9 @@ function onboardComplete() {
   var gName  = document.getElementById('input-guardian-name').value.trim();
   var gTel   = document.getElementById('input-guardian-tel').value.trim();
   if (!name) { showAlert('이름을 입력해주세요'); return; }
+  if (!gName || !gTel) {
+    if (!confirm('보호자 없이는 SOS 기능이 작동하지 않습니다.\n그래도 시작할까요?')) return;
+  }
   settings.name = name;
   if (gName && gTel) {
     settings.guardians = [{ name: gName, tel: gTel }];
