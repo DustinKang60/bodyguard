@@ -555,19 +555,20 @@ body.light #screen-sos { background: #fff0f0; }
 
       <!-- SOS -->
       <div class="sos-wrap">
-        <button class="sos-btn" onclick="showScreen('sos')">
+        <button class="sos-btn" onclick="if(!settings.sosOn){showAlert('🔕 SOS 기능이 꺼져 있습니다. 설정에서 켤 수 있어요');}else{showScreen('sos');}">
           🆘 SOS 긴급 신호
         </button>
         <p class="sos-hint">누르면 보호자에게 즉시 연락됩니다</p>
+        <div style="text-align:center; margin-top:4px;"><span class="badge badge-on" id="badge-sos">● 사용 가능</span></div>
       </div>
 
       <!-- 기능 카드 그리드 -->
       <div class="feat-grid">
-        <div class="feat-card" onclick="sendMyLocation()">
+        <div class="feat-card" onclick="if(!settings.locationOn){showAlert('🔕 위치 알리기 기능이 꺼져 있습니다. 설정에서 켤 수 있어요');}else{sendMyLocation();}">
           <div class="feat-icon">📍</div>
           <div class="feat-name">내 위치 알리기</div>
           <div class="feat-desc">카카오맵 링크를 보호자에게 전송</div>
-          <div class="badge badge-on">● 사용 가능</div>
+          <div class="badge badge-on" id="badge-location">● 사용 가능</div>
         </div>
         <div class="feat-card" onclick="showScreen('activity')">
           <div class="feat-icon">👣</div>
@@ -575,11 +576,11 @@ body.light #screen-sos { background: #fff0f0; }
           <div class="feat-desc">미활동 시 보호자 알림</div>
           <div class="badge badge-on" id="badge-wellness">● 작동 중</div>
         </div>
-        <div class="feat-card" onclick="callKakaoTaxi()">
+        <div class="feat-card" onclick="if(!settings.taxiOn){showAlert('🔕 택시 기능이 꺼져 있습니다. 설정에서 켤 수 있어요');}else{callKakaoTaxi();}">
           <div class="feat-icon">🚕</div>
           <div class="feat-name">택시 부르기</div>
           <div class="feat-desc">카카오택시 앱 바로 열기</div>
-          <div class="badge badge-on">● 사용 가능</div>
+          <div class="badge badge-on" id="badge-taxi">● 사용 가능</div>
         </div>
         <div class="feat-card" onclick="showAlert('🚧 낙상 감지는 2단계에서 추가됩니다')">
           <div class="feat-icon">🤸</div>
@@ -711,6 +712,51 @@ body.light #screen-sos { background: #fff0f0; }
 
   <div class="scroll-area">
     <div style="padding: 0 16px 24px;">
+
+      <div class="section-title">🔧 기능 관리</div>
+      <div class="card" style="margin-bottom:10px;">
+        <div style="font-size:12px; color:var(--text-sub); margin-bottom:14px;">각 기능을 켜거나 끌 수 있습니다</div>
+
+        <!-- SOS -->
+        <div style="display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--border);">
+          <div style="font-size:22px;">🆘</div>
+          <div style="flex:1;">
+            <div style="font-size:15px; font-weight:700;">SOS 긴급신호</div>
+            <div style="font-size:12px; color:var(--text-sub); margin-top:2px;">보호자에게 긴급 신호 발송</div>
+          </div>
+          <div class="toggle" id="toggle-sos" onclick="toggleFeature('sos')"></div>
+        </div>
+
+        <!-- 위치 알리기 -->
+        <div style="display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--border);">
+          <div style="font-size:22px;">📍</div>
+          <div style="flex:1;">
+            <div style="font-size:15px; font-weight:700;">내 위치 알리기</div>
+            <div style="font-size:12px; color:var(--text-sub); margin-top:2px;">현재 위치를 보호자에게 전송</div>
+          </div>
+          <div class="toggle" id="toggle-location" onclick="toggleFeature('location')"></div>
+        </div>
+
+        <!-- 안부 확인 -->
+        <div style="display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--border);">
+          <div style="font-size:22px;">👣</div>
+          <div style="flex:1;">
+            <div style="font-size:15px; font-weight:700;">안부 확인</div>
+            <div style="font-size:12px; color:var(--text-sub); margin-top:2px;">미활동 시 보호자 알림</div>
+          </div>
+          <div class="toggle" id="toggle-wellness-feat" onclick="toggleFeature('wellness')"></div>
+        </div>
+
+        <!-- 택시 -->
+        <div style="display:flex; align-items:center; gap:12px; padding:10px 0;">
+          <div style="font-size:22px;">🚕</div>
+          <div style="flex:1;">
+            <div style="font-size:15px; font-weight:700;">택시 부르기</div>
+            <div style="font-size:12px; color:var(--text-sub); margin-top:2px;">카카오택시 앱 바로 열기</div>
+          </div>
+          <div class="toggle" id="toggle-taxi" onclick="toggleFeature('taxi')"></div>
+        </div>
+      </div>
 
       <div class="section-title">🎨 화면 테마</div>
       <div class="card" style="margin-bottom:10px;">
@@ -892,6 +938,9 @@ var settings = {
   name: '',
   guardians: [],           /* [{name, tel}] */
   wellnessOn: true,
+  sosOn: true,
+  locationOn: true,
+  taxiOn: true,
   idleHours: 12,
   stepGoal: 5000,
   lastActiveTs: Date.now(),
@@ -1076,8 +1125,13 @@ function renderMain() {
   updateHomeStats();
   /* 기능 카드 뱃지 */
   var bw = document.getElementById('badge-wellness');
-  if (bw) bw.className = 'badge ' + (settings.wellnessOn ? 'badge-on' : 'badge-off');
-  if (bw) bw.textContent = settings.wellnessOn ? '● 작동 중' : '● 꺼짐';
+  if (bw) { bw.className = 'badge ' + (settings.wellnessOn ? 'badge-on' : 'badge-off'); bw.textContent = settings.wellnessOn ? '● 작동 중' : '● 꺼짐'; }
+  var bs = document.getElementById('badge-sos');
+  if (bs) { bs.className = 'badge ' + (settings.sosOn ? 'badge-on' : 'badge-off'); bs.textContent = settings.sosOn ? '● 사용 가능' : '● 꺼짐'; }
+  var bl = document.getElementById('badge-location');
+  if (bl) { bl.className = 'badge ' + (settings.locationOn ? 'badge-on' : 'badge-off'); bl.textContent = settings.locationOn ? '● 사용 가능' : '● 꺼짐'; }
+  var bt = document.getElementById('badge-taxi');
+  if (bt) { bt.className = 'badge ' + (settings.taxiOn ? 'badge-on' : 'badge-off'); bt.textContent = settings.taxiOn ? '● 사용 가능' : '● 꺼짐'; }
 }
 
 function updateGreetingDate() {
@@ -1215,6 +1269,18 @@ function renderSettings() {
   /* 테마 버튼 상태 */
   updateThemeButtons();
   updateNotifStatus();
+
+  /* 기능 토글 상태 */
+  var togMap = {
+    'toggle-sos':          settings.sosOn      !== false,
+    'toggle-location':     settings.locationOn !== false,
+    'toggle-wellness-feat':settings.wellnessOn !== false,
+    'toggle-taxi':         settings.taxiOn     !== false
+  };
+  Object.keys(togMap).forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.className = 'toggle' + (togMap[id] ? '' : ' off');
+  });
 }
 
 /* ══════════════════════════════════════
@@ -1343,7 +1409,7 @@ function dispatchLocation(guardians, msg) {
       window.location.href = 'sms:' + guardians[0].tel + '?body=' + encodeURIComponent(msg);
   });
   var names = guardians.map(function(g){ return esc(g.name); }).join(', ');
-  saveLog('location', names + '님께 카카오톡으로 발송');
+  saveLog('location', '카카오톡 공유창 열림 (수신자 직접 선택)');
   showAlert('📲 카카오톡 공유창에서 보호자를 선택해주세요');
 }
 
@@ -1413,7 +1479,19 @@ function checkWellness() {
 /* ══════════════════════════════════════
    토글 / 설정
 ══════════════════════════════════════ */
-function toggleWellness() {
+function toggleFeature(key) {
+  var map = { sos: 'sosOn', location: 'locationOn', wellness: 'wellnessOn', taxi: 'taxiOn' };
+  var settingKey = map[key];
+  if (!settingKey) return;
+  settings[settingKey] = !settings[settingKey];
+  saveSettings();
+  renderSettings();
+  renderMain();
+  var label = { sos: 'SOS', location: '위치 알리기', wellness: '안부 확인', taxi: '택시' }[key];
+  showAlert(settings[settingKey] ? ('✅ ' + label + ' 켜짐') : ('🔕 ' + label + ' 꺼짐'));
+}
+
+
   settings.wellnessOn = !settings.wellnessOn;
   saveSettings();
   var tog = document.getElementById('toggle-wellness');
@@ -1609,8 +1687,9 @@ function resetApp() {
   try { indexedDB.deleteDatabase(IDB_NAME); } catch(e) {}
   /* 3. 메모리 settings 초기화 */
   settings = {
-    name: '', guardians: [], wellnessOn: true, idleHours: 12,
-    stepGoal: 5000, lastActiveTs: Date.now(),
+    name: '', guardians: [], wellnessOn: true,
+    sosOn: true, locationOn: true, taxiOn: true,
+    idleHours: 12, stepGoal: 5000, lastActiveTs: Date.now(),
     stepsToday: 0, stepHistory: [], theme: 'dark'
   };
   /* 4. 캐시 삭제 후 온보딩으로 강제 이동 */
