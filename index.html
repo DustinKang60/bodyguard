@@ -716,8 +716,6 @@ body.light #screen-sos { background: #fff0f0; }
       <div class="section-title">🔧 기능 관리</div>
       <div class="card" style="margin-bottom:10px;">
         <div style="font-size:12px; color:var(--text-sub); margin-bottom:14px;">각 기능을 켜거나 끌 수 있습니다</div>
-
-        <!-- SOS -->
         <div style="display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--border);">
           <div style="font-size:22px;">🆘</div>
           <div style="flex:1;">
@@ -726,8 +724,6 @@ body.light #screen-sos { background: #fff0f0; }
           </div>
           <div class="toggle" id="toggle-sos" onclick="toggleFeature('sos')"></div>
         </div>
-
-        <!-- 위치 알리기 -->
         <div style="display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--border);">
           <div style="font-size:22px;">📍</div>
           <div style="flex:1;">
@@ -736,8 +732,6 @@ body.light #screen-sos { background: #fff0f0; }
           </div>
           <div class="toggle" id="toggle-location" onclick="toggleFeature('location')"></div>
         </div>
-
-        <!-- 안부 확인 -->
         <div style="display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--border);">
           <div style="font-size:22px;">👣</div>
           <div style="flex:1;">
@@ -746,8 +740,6 @@ body.light #screen-sos { background: #fff0f0; }
           </div>
           <div class="toggle" id="toggle-wellness-feat" onclick="toggleFeature('wellness')"></div>
         </div>
-
-        <!-- 택시 -->
         <div style="display:flex; align-items:center; gap:12px; padding:10px 0;">
           <div style="font-size:22px;">🚕</div>
           <div style="flex:1;">
@@ -1127,11 +1119,11 @@ function renderMain() {
   var bw = document.getElementById('badge-wellness');
   if (bw) { bw.className = 'badge ' + (settings.wellnessOn ? 'badge-on' : 'badge-off'); bw.textContent = settings.wellnessOn ? '● 작동 중' : '● 꺼짐'; }
   var bs = document.getElementById('badge-sos');
-  if (bs) { bs.className = 'badge ' + (settings.sosOn ? 'badge-on' : 'badge-off'); bs.textContent = settings.sosOn ? '● 사용 가능' : '● 꺼짐'; }
+  if (bs) { bs.className = 'badge ' + (settings.sosOn !== false ? 'badge-on' : 'badge-off'); bs.textContent = settings.sosOn !== false ? '● 사용 가능' : '● 꺼짐'; }
   var bl = document.getElementById('badge-location');
-  if (bl) { bl.className = 'badge ' + (settings.locationOn ? 'badge-on' : 'badge-off'); bl.textContent = settings.locationOn ? '● 사용 가능' : '● 꺼짐'; }
+  if (bl) { bl.className = 'badge ' + (settings.locationOn !== false ? 'badge-on' : 'badge-off'); bl.textContent = settings.locationOn !== false ? '● 사용 가능' : '● 꺼짐'; }
   var bt = document.getElementById('badge-taxi');
-  if (bt) { bt.className = 'badge ' + (settings.taxiOn ? 'badge-on' : 'badge-off'); bt.textContent = settings.taxiOn ? '● 사용 가능' : '● 꺼짐'; }
+  if (bt) { bt.className = 'badge ' + (settings.taxiOn !== false ? 'badge-on' : 'badge-off'); bt.textContent = settings.taxiOn !== false ? '● 사용 가능' : '● 꺼짐'; }
 }
 
 function updateGreetingDate() {
@@ -1270,12 +1262,12 @@ function renderSettings() {
   updateThemeButtons();
   updateNotifStatus();
 
-  /* 기능 토글 상태 */
+  /* 기능 토글 상태 동기화 */
   var togMap = {
-    'toggle-sos':          settings.sosOn      !== false,
-    'toggle-location':     settings.locationOn !== false,
-    'toggle-wellness-feat':settings.wellnessOn !== false,
-    'toggle-taxi':         settings.taxiOn     !== false
+    'toggle-sos':           settings.sosOn      !== false,
+    'toggle-location':      settings.locationOn !== false,
+    'toggle-wellness-feat': settings.wellnessOn !== false,
+    'toggle-taxi':          settings.taxiOn     !== false
   };
   Object.keys(togMap).forEach(function(id) {
     var el = document.getElementById(id);
@@ -1491,7 +1483,7 @@ function toggleFeature(key) {
   showAlert(settings[settingKey] ? ('✅ ' + label + ' 켜짐') : ('🔕 ' + label + ' 꺼짐'));
 }
 
-
+function toggleWellness() {
   settings.wellnessOn = !settings.wellnessOn;
   saveSettings();
   var tog = document.getElementById('toggle-wellness');
