@@ -40,3 +40,6 @@ android/.idea/
 *.keystore
 *.jks
 keystore.properties
+
+# 없는 기능을 광고하던 초기 목업 — 제품 아님, 저장소에서 제외(로컬 보존)
+SeniorCare_Mockup/
