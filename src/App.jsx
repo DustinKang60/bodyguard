@@ -1,0 +1,447 @@
+import { useState, useEffect } from 'react';
+import { Geolocation } from '@capacitor/geolocation';
+import { registerPlugin } from '@capacitor/core';
+
+const SmsPlugin = registerPlugin('SmsPlugin');
+
+function IntroScreen() {
+  return (
+    <div className="screen" style={{ backgroundColor: 'var(--blue)', color: 'white', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%', position: 'relative' }}>
+      <h1 style={{ fontSize: '48px', marginBottom: '20px' }}>❤️</h1>
+      <h2 style={{ margin: 0, fontSize: '28px' }}>보디가드</h2>
+      <div style={{ position: 'absolute', bottom: 'calc(20px + env(safe-area-inset-bottom))', fontSize: '14px', opacity: 0.8 }}>작은앱공방</div>
+    </div>
+  );
+}
+
+function SetupScreen({ onSave, initialSettings }) {
+  // 기본값을 비워둔다. 예시 번호가 채워져 있으면 설정을 마친 것처럼 보여
+  // 실제 위급 상황에 모르는 사람에게 문자가 갈 수 있다.
+  const [name, setName] = useState(initialSettings?.name || '');
+  const [phone, setPhone] = useState(initialSettings?.phone || '');
+  const [phone2, setPhone2] = useState(initialSettings?.phone2 || '');
+  const [batteryAlert, setBatteryAlert] = useState(initialSettings?.batteryAlert !== false);
+  const [error, setError] = useState('');
+
+  const handleSave = () => {
+    if (!name.trim()) { setError('사용하는 분 호칭을 입력해 주세요.'); return; }
+    const digits = phone.replace(/[^0-9]/g, '');
+    if (digits.length < 10) { setError('1순위 응급연락처를 정확히 입력해 주세요.'); return; }
+    const digits2 = phone2.replace(/[^0-9]/g, '');
+    if (phone2.trim() && digits2.length < 10) { setError('2순위 연락처 형식을 확인해 주세요.'); return; }
+    setError('');
+    onSave({ name: name.trim(), phone: phone.trim(), phone2: phone2.trim(), batteryAlert });
+  };
+
+  return (
+    <div className="screen setup-screen" style={{ padding: 0 }}>
+      <div className="setup-content" style={{ flex: 1, overflowY: 'auto', padding: '20px', paddingBottom: '40px' }}>
+        <div className="setup-title">
+          <span style={{ fontSize: '16px', color: 'var(--blue)' }}>초기 설정 (보호자용)</span><br />
+          보디가드
+        </div>
+
+        <div className="input-group">
+          <label>사용하는 분 호칭</label>
+          <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 어머니, 지민, 나" />
+        </div>
+
+        <div className="input-group">
+          <label>1순위 응급연락처 (가족 등)</label>
+          <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+        </div>
+
+        <div className="input-group">
+          <label>2순위 보호자 연락처 (선택)</label>
+          <input type="tel" value={phone2} onChange={(e) => setPhone2(e.target.value)} placeholder="추가 연락처가 있다면 입력" />
+        </div>
+
+        <div className="input-group">
+          <label>자동 안부 확인 알람</label>
+          <select disabled>
+            <option>12시간 (기본 탑재)</option>
+          </select>
+          <small style={{display:'block', marginTop:'8px', color:'#666'}}>
+            *화면이 12시간 동안 켜지지 않으면 보호자에게 문자가 자동 전송됩니다.
+          </small>
+        </div>
+
+        <div className="input-group">
+          <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={batteryAlert}
+              onChange={(e) => setBatteryAlert(e.target.checked)}
+              style={{ width: '22px', height: '22px', cursor: 'pointer' }}
+            />
+            <span>배터리 부족 시 보호자에게 알림</span>
+          </label>
+          <small style={{display:'block', marginTop:'8px', color:'#666'}}>
+            *배터리가 15% 이하로 떨어지면 보호자에게 문자를 보냅니다.
+          </small>
+        </div>
+
+        <div style={{ padding: '15px', backgroundColor: '#f0f0f0', borderRadius: '8px', marginTop: '15px', marginBottom: '15px', fontSize: '12px', color: '#555', lineHeight: '1.4' }}>
+          <strong>개인정보 처리방침 및 권한 사용 동의</strong><br/>
+          본 앱은 사용자의 안전을 위해 <strong>[위치 정보]</strong>와 <strong>[문자(SMS) 자동 발송]</strong> 권한을 사용합니다. 입력하신 연락처 및 위치 정보는 위급 상황 시 지정된 보호자에게 문자를 발송하는 용도로만 사용되며, 외부 서버에 수집되거나 저장되지 않습니다.<br/><br/>
+          앱을 시작하시면 본 개인정보 처리방침 및 권한 사용에 동의하신 것으로 간주됩니다.
+        </div>
+      </div>
+
+      <div className="setup-footer" style={{
+        padding: '20px',
+        backgroundColor: 'white',
+        borderTop: '1px solid #eee',
+        boxShadow: '0 -4px 12px rgba(0,0,0,0.05)',
+        paddingBottom: 'calc(20px + env(safe-area-inset-bottom))'
+      }}>
+        {error && (
+          <div style={{ marginBottom: '12px', padding: '12px', background: '#FFECEC', border: '1px solid #FFB3B3', borderRadius: '10px', color: '#C0392B', fontSize: '14px', fontWeight: 700 }}>
+            ⚠️ {error}
+          </div>
+        )}
+        <button className="btn-primary" style={{ margin: 0, width: '100%' }} onClick={handleSave}>설정 저장 및 시작하기</button>
+        <div style={{ textAlign: 'center', fontSize: '13px', color: '#888', marginTop: '12px' }}>
+          <strong>작은앱공방</strong>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MainScreen({ settings, onTrigger, onOpenSettings }) {
+  return (
+    <div className="screen" style={{ position: 'relative' }}>
+      <button
+        onClick={onOpenSettings}
+        style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', fontSize: '24px', opacity: 0.3, padding: '10px', cursor: 'pointer' }}
+      >
+        ⚙️
+      </button>
+      <div className="onboard-hello"><span>{settings.name}</span> 님,<br />무엇을 도와드릴까요?</div>
+
+      <div className="grid-container">
+        <button className="grid-btn btn-danger" onClick={() => onTrigger('🚑 보호자에게 응급 도움을 요청합니다.', true)}>
+          <span className="emoji">🚨</span>
+          <span className="label">아파요! 도움이 필요해요</span>
+        </button>
+
+        <button className="grid-btn btn-warning" onClick={() => onTrigger('🚕 보호자에게 택시를 불러달라고 요청합니다.', false)}>
+          <span className="emoji">🚕</span>
+          <span className="label">택시<br />필요해요</span>
+        </button>
+
+        <button className="grid-btn btn-purple" onClick={() => onTrigger('🧭 보호자에게 현재 내 위치를 보냅니다.', false)}>
+          <span className="emoji">🧭</span>
+          <span className="label">길을<br />잃었어요</span>
+        </button>
+
+        <button className="grid-btn btn-success" style={{ gridColumn: 'span 1' }} onClick={() => onTrigger('🏠 보호자에게 무사히 도착했다고 알립니다.', false)}>
+          <span className="emoji">🏠</span>
+          <span className="label">도착<br />했어요</span>
+        </button>
+
+        <button className="grid-btn btn-call" style={{ gridColumn: 'span 1' }} onClick={() => window.location.href = `tel:${settings.phone}`}>
+          <span className="emoji">📞</span>
+          <span className="label">전화<br />걸기</span>
+        </button>
+      </div>
+
+      <div style={{ textAlign: 'center', fontSize: '13px', color: '#888', marginTop: '10px' }}>
+        <strong>작은앱공방</strong>
+      </div>
+    </div>
+  );
+}
+
+function CountdownScreen({ message, isEmergency, onCancel, onComplete }) {
+  const [timeLeft, setTimeLeft] = useState(5);
+
+  useEffect(() => {
+    if (timeLeft <= 0) {
+      onComplete();
+      return;
+    }
+    const timerId = setTimeout(() => {
+      setTimeLeft(timeLeft - 1);
+    }, 1000);
+    return () => clearTimeout(timerId);
+  }, [timeLeft, onComplete]);
+
+  const bgStyle = isEmergency ? { backgroundColor: 'var(--danger)' } : { backgroundColor: '#1c1c1e' };
+  const textStyle = isEmergency ? { color: 'var(--danger)' } : { color: '#1c1c1e' };
+
+  return (
+    <div className="screen countdown-screen" style={bgStyle}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        <div className="action-text">{message}</div>
+        <div style={{ fontSize: '20px', marginBottom: '40px', opacity: 0.9 }}>
+          {isEmergency ? "응급 문자가 곧 발송됩니다" : "보호자에게 알림 문자가 전송됩니다"}
+        </div>
+
+        <div className="pulse-ring" style={textStyle}>{timeLeft}</div>
+      </div>
+
+      <button className="cancel-btn" onClick={onCancel}>❌ 실수로 눌렀어요 (취소)</button>
+    </div>
+  );
+}
+
+function ResultScreen({ success, isEmergency, onClose, onCall, onFalseAlarm }) {
+  const [cancelState, setCancelState] = useState('idle'); // idle | sending | sent
+
+  const handleFalseAlarm = async () => {
+    setCancelState('sending');
+    const ok = await onFalseAlarm();
+    setCancelState(ok ? 'sent' : 'idle');
+  };
+
+  return (
+    <div className="screen" style={{
+      backgroundColor: success ? 'var(--success)' : 'var(--danger)',
+      display: 'flex', flexDirection: 'column',
+      justifyContent: 'center', alignItems: 'center',
+      color: 'white', padding: '40px'
+    }}>
+      <div style={{ fontSize: '90px', marginBottom: '24px' }}>{success ? '✅' : '❌'}</div>
+      <div style={{ fontSize: '30px', fontWeight: '900', marginBottom: '16px', textAlign: 'center' }}>
+        {success ? '문자를 보냈어요!' : '전송 실패'}
+      </div>
+      {success ? (
+        <>
+          <div style={{ fontSize: '18px', marginBottom: isEmergency ? '24px' : '48px', textAlign: 'center', opacity: 0.9, lineHeight: 1.5 }}>
+            보호자에게 문자가<br />전송되었습니다.
+            {isEmergency && <><br /><span style={{ fontSize: '15px', opacity: 0.85 }}>위치도 확인되는 대로 함께 보냅니다.</span></>}
+          </div>
+          {isEmergency && (
+            <button
+              onClick={handleFalseAlarm}
+              disabled={cancelState !== 'idle'}
+              style={{
+                backgroundColor: cancelState === 'sent' ? 'rgba(255,255,255,0.25)' : 'white',
+                color: cancelState === 'sent' ? 'white' : 'var(--success)',
+                border: 'none', borderRadius: '14px',
+                padding: '18px', fontSize: '18px', fontWeight: '800',
+                marginBottom: '16px', width: '100%',
+                cursor: cancelState === 'idle' ? 'pointer' : 'default'
+              }}>
+              {cancelState === 'sent' ? '✅ 취소 문자를 보냈어요'
+                : cancelState === 'sending' ? '보내는 중…'
+                : '❌ 잘못 눌렀어요 (취소 문자 보내기)'}
+            </button>
+          )}
+        </>
+      ) : (
+        <>
+          <div style={{ fontSize: '18px', marginBottom: '32px', textAlign: 'center', opacity: 0.9, lineHeight: 1.5 }}>
+            문자 전송에 실패했습니다.<br />직접 전화를 거세요.
+          </div>
+          <button onClick={onCall} style={{
+            backgroundColor: 'white', color: 'var(--danger)',
+            border: 'none', borderRadius: '14px',
+            padding: '20px', fontSize: '22px', fontWeight: '900',
+            marginBottom: '16px', width: '100%', cursor: 'pointer'
+          }}>
+            📞 지금 전화하기
+          </button>
+        </>
+      )}
+      <button onClick={onClose} style={{
+        backgroundColor: 'rgba(255,255,255,0.2)', color: 'white',
+        border: '2px solid white', borderRadius: '14px',
+        padding: '16px', fontSize: '18px', fontWeight: '700',
+        width: '100%', cursor: 'pointer'
+      }}>
+        확인
+      </button>
+    </div>
+  );
+}
+
+function App() {
+  const [currentView, setCurrentView] = useState(() => {
+    return localStorage.getItem('seniorCareSettings') ? 'main' : 'setup';
+  });
+  const [settings, setSettings] = useState(() => {
+    const saved = localStorage.getItem('seniorCareSettings');
+    // 예시 이름·번호를 기본값으로 두면 설정 화면이 채워진 채로 열려
+    // 그대로 저장될 수 있다. 위급 시 모르는 사람에게 문자가 간다. 반드시 비워 둔다.
+    return saved ? JSON.parse(saved) : { name: '', phone: '', phone2: '', batteryAlert: true };
+  });
+  const [actionInfo, setActionInfo] = useState({ message: '', isEmergency: false });
+  const [isBatteryOptimized, setIsBatteryOptimized] = useState(false);
+  const [sendResult, setSendResult] = useState({ success: true, isEmergency: false });
+
+  useEffect(() => {
+    const checkBattery = async () => {
+      try {
+        const { isIgnoring } = await SmsPlugin.checkBatteryOptimization();
+        setIsBatteryOptimized(!isIgnoring);
+      } catch (e) {
+        console.log('Battery check error:', e);
+      }
+    };
+
+    if (currentView === 'main') {
+      checkBattery();
+      SmsPlugin.startMonitor({
+        phone: settings.phone,
+        phone2: settings.phone2 || '',
+        name: settings.name,
+        batteryAlert: settings.batteryAlert !== false
+      }).catch(e => console.log('Monitor start error:', e));
+    }
+  }, [currentView, settings]);
+
+  const handleRequestBatteryOptimization = async () => {
+    await SmsPlugin.requestBatteryOptimization();
+    setTimeout(async () => {
+      const { isIgnoring } = await SmsPlugin.checkBatteryOptimization();
+      setIsBatteryOptimized(!isIgnoring);
+    }, 2000);
+  };
+
+  const handleSaveSetup = async (newSettings) => {
+    setSettings(newSettings);
+    localStorage.setItem('seniorCareSettings', JSON.stringify(newSettings));
+    setCurrentView('main');
+    try {
+      await SmsPlugin.startMonitor({
+        phone: newSettings.phone,
+        phone2: newSettings.phone2 || '',
+        name: newSettings.name,
+        batteryAlert: newSettings.batteryAlert !== false
+      });
+    } catch (e) {
+      console.log('Monitor start error:', e);
+    }
+  };
+
+  const handleTrigger = async (message, isEmergency) => {
+    if (isEmergency) {
+      await executeAction(message, true);
+    } else {
+      setActionInfo({ message, isEmergency });
+      setCurrentView('countdown');
+    }
+  };
+
+  const handleCancelCountdown = () => {
+    setCurrentView('main');
+  };
+
+  // 수신자 목록 (빈 값·중복 제거)
+  const recipients = () => {
+    const list = [settings.phone, settings.phone2]
+      .map(p => (p || '').trim())
+      .filter(p => p !== '');
+    return [...new Set(list)];
+  };
+
+  // 수신자별로 개별 발송한다. 한 명에게 실패해도 나머지는 계속 보내고,
+  // 하나라도 성공하면 성공으로 본다. (예전엔 2순위 실패 시 1순위 성공도 '실패'로 떴다)
+  const sendToAll = async (message) => {
+    let anySuccess = false;
+    for (const phone of recipients()) {
+      try {
+        await SmsPlugin.sendSms({ phone, message });
+        anySuccess = true;
+      } catch (e) {
+        console.error('문자 발송 실패:', phone, e);
+      }
+    }
+    return anySuccess;
+  };
+
+  const getLocationText = async () => {
+    try {
+      const c = await Geolocation.getCurrentPosition({
+        enableHighAccuracy: true, timeout: 10000, maximumAge: 0
+      });
+      return `\n현재 위치: https://map.kakao.com/link/map/${c.coords.latitude},${c.coords.longitude}`;
+    } catch (e) {
+      return '\n(위치 확인 불가)';
+    }
+  };
+
+  const executeAction = async (msg = actionInfo.message, isEmerg = actionInfo.isEmergency) => {
+    if (isEmerg) {
+      // 응급은 속도가 우선이므로 위치를 기다리지 않고 먼저 보낸다.
+      const emergMsg = `🚨[긴급] ${settings.name} 님이 도움 요청 버튼을 눌렀습니다! 즉시 확인 및 연락 바랍니다.`;
+      const ok = await sendToAll(emergMsg);
+      setSendResult({ success: ok, isEmergency: true });
+      setCurrentView('result');
+
+      // 위치는 확보되는 대로 두 번째 문자로 보낸다.
+      // (위급 상황일수록 '어디 있는지'가 가장 중요한 정보다)
+      getLocationText().then(loc => {
+        sendToAll(`🚨[긴급] ${settings.name} 님의 현재 위치입니다.${loc}`);
+      });
+      return;
+    }
+
+    const loc = await getLocationText();
+    const ok = await sendToAll(`[알림] ${settings.name} 님: ${msg}${loc}`);
+    setSendResult({ success: ok, isEmergency: false });
+    setCurrentView('result');
+  };
+
+  // 오작동 취소 문자 (응급 발송 직후 결과 화면에서 사용)
+  const sendFalseAlarm = async () => {
+    return await sendToAll(`✅ ${settings.name} 님: 방금 알림은 실수로 눌린 것입니다. 괜찮으니 안심하세요.`);
+  };
+
+  return (
+    <div className="app-container">
+      {currentView === 'setup' && <SetupScreen onSave={handleSaveSetup} initialSettings={settings} />}
+      {currentView === 'main' && (
+        <>
+          <MainScreen settings={settings} onTrigger={handleTrigger} onOpenSettings={() => setCurrentView('setup')} />
+          {isBatteryOptimized && (
+            <div style={{
+              position: 'fixed', bottom: '20px', left: '20px', right: '20px',
+              backgroundColor: '#fff4e5', border: '1px solid #ffa117', borderRadius: '12px',
+              padding: '15px', zIndex: 1000, boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              display: 'flex', flexDirection: 'column', gap: '10px'
+            }}>
+              <div style={{ color: '#663c00', fontSize: '14px', fontWeight: 'bold' }}>
+                ⚠️ 배터리 최적화 중단 필요
+              </div>
+              <div style={{ color: '#663c00', fontSize: '12px', lineHeight: '1.4' }}>
+                안드로이드 시스템이 앱을 종료하지 못하도록 '배터리 최적화 제외' 설정을 허용해 주세요. 그래야 안전하게 지켜드릴 수 있습니다.
+              </div>
+              <button
+                onClick={handleRequestBatteryOptimization}
+                style={{
+                  backgroundColor: '#ffa117', color: 'white', border: 'none',
+                  borderRadius: '6px', padding: '10px', fontSize: '14px', fontWeight: 'bold'
+                }}
+              >
+                설정하러 가기
+              </button>
+            </div>
+          )}
+        </>
+      )}
+      {currentView === 'countdown' && (
+        <CountdownScreen
+          message={actionInfo.message}
+          isEmergency={actionInfo.isEmergency}
+          onCancel={handleCancelCountdown}
+          onComplete={() => executeAction()}
+        />
+      )}
+      {currentView === 'result' && (
+        <ResultScreen
+          success={sendResult.success}
+          isEmergency={sendResult.isEmergency}
+          onClose={() => setCurrentView('main')}
+          onCall={() => { window.location.href = `tel:${settings.phone}`; setCurrentView('main'); }}
+          onFalseAlarm={sendFalseAlarm}
+        />
+      )}
+    </div>
+  );
+}
+
+export default App;

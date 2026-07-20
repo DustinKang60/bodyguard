@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">보디가드</string>
+    <string name="title_activity_main">보디가드</string>
+    <string name="package_name">com.littleappstudio.seniorcare.app</string>
+    <string name="custom_url_scheme">com.littleappstudio.seniorcare.app</string>
+</resources>

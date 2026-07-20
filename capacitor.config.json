@@ -1,0 +1,11 @@
+{
+  "appId": "com.littleappstudio.seniorcare.app",
+  "appName": "보디가드",
+  "webDir": "dist",
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 0,
+      "launchFadeOutDuration": 0
+    }
+  }
+}
