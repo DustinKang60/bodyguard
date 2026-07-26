@@ -119,4 +119,32 @@ public class SmsPlugin extends Plugin {
             call.reject("SMS permission denied");
         }
     }
+
+    // 현재 SMS 권한 상태만 확인 (팝업 없음)
+    @PluginMethod
+    public void checkSmsPermission(PluginCall call) {
+        com.getcapacitor.JSObject ret = new com.getcapacitor.JSObject();
+        ret.put("granted", getPermissionState("sms") == PermissionState.GRANTED);
+        call.resolve(ret);
+    }
+
+    // 설치하는 보호자가 설정 단계에서 SMS 권한을 미리 받도록 한다.
+    // 이렇게 하면 나중에 부모가 응급 버튼을 누를 때 권한 팝업이 뜨지 않는다.
+    @PluginMethod
+    public void requestSmsPermission(PluginCall call) {
+        if (getPermissionState("sms") == PermissionState.GRANTED) {
+            com.getcapacitor.JSObject ret = new com.getcapacitor.JSObject();
+            ret.put("granted", true);
+            call.resolve(ret);
+        } else {
+            requestPermissionForAlias("sms", call, "smsRequestCallback");
+        }
+    }
+
+    @PermissionCallback
+    public void smsRequestCallback(PluginCall call) {
+        com.getcapacitor.JSObject ret = new com.getcapacitor.JSObject();
+        ret.put("granted", getPermissionState("sms") == PermissionState.GRANTED);
+        call.resolve(ret);
+    }
 }

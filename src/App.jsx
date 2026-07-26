@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Geolocation } from '@capacitor/geolocation';
 import { registerPlugin } from '@capacitor/core';
+import { App as CapApp } from '@capacitor/app';
 
 const SmsPlugin = registerPlugin('SmsPlugin');
 
@@ -100,7 +101,120 @@ function SetupScreen({ onSave, initialSettings }) {
             ⚠️ {error}
           </div>
         )}
-        <button className="btn-primary" style={{ margin: 0, width: '100%' }} onClick={handleSave}>설정 저장 및 시작하기</button>
+        <button className="btn-primary" style={{ margin: 0, width: '100%' }} onClick={handleSave}>저장하고 권한 허용하기 →</button>
+        <div style={{ textAlign: 'center', fontSize: '13px', color: '#888', marginTop: '12px' }}>
+          <strong>작은앱공방</strong>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 설치하는 보호자가 부모에게 넘기기 전에 모든 권한을 미리 받는 화면.
+// 이렇게 해두면 나중에 부모가 위급 상황에서 버튼을 눌렀을 때
+// 권한 팝업이 뜨는 일이 없다.
+function PermissionScreen({ onDone }) {
+  const [sms, setSms] = useState(false);
+  const [loc, setLoc] = useState(false);
+  const [batt, setBatt] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const refresh = async () => {
+    try { const r = await SmsPlugin.checkSmsPermission(); setSms(!!r.granted); } catch (e) { console.log(e); }
+    try { const r = await Geolocation.checkPermissions(); setLoc(r.location === 'granted' || r.coarseLocation === 'granted'); } catch (e) { console.log(e); }
+    try { const r = await SmsPlugin.checkBatteryOptimization(); setBatt(!!r.isIgnoring); } catch (e) { console.log(e); }
+  };
+
+  useEffect(() => { refresh(); }, []);
+
+  // 배터리 최적화 제외는 별도 설정 화면을 열었다가 돌아오므로,
+  // 앱이 다시 켜질 때(resume) 상태를 새로 확인한다.
+  useEffect(() => {
+    let handle;
+    CapApp.addListener('appStateChange', ({ isActive }) => { if (isActive) refresh(); }).then(h => { handle = h; });
+    return () => { if (handle) handle.remove(); };
+  }, []);
+
+  const requestAll = async () => {
+    setBusy(true);
+    try {
+      if (!sms) { try { await SmsPlugin.requestSmsPermission(); } catch (e) { console.log(e); } }
+      if (!loc) { try { await Geolocation.requestPermissions(); } catch (e) { console.log(e); } }
+      await refresh();
+      // 배터리는 마지막에. 설정 화면을 열면 앱이 백그라운드로 갔다가
+      // 돌아올 때 위 resume 리스너가 상태를 갱신한다.
+      const b = await SmsPlugin.checkBatteryOptimization();
+      if (!b.isIgnoring) { try { await SmsPlugin.requestBatteryOptimization(); } catch (e) { console.log(e); } }
+    } finally {
+      setBusy(false);
+      refresh();
+    }
+  };
+
+  const allGranted = sms && loc && batt;
+
+  const handleDone = () => {
+    if (allGranted) { onDone(); return; }
+    const missing = [!sms && '문자', !loc && '위치', !batt && '배터리 최적화 제외'].filter(Boolean).join(', ');
+    if (window.confirm(`아직 허용되지 않은 권한이 있습니다: ${missing}\n\n이대로 넘어가면 위급 상황에서 문자·위치가 동작하지 않을 수 있습니다. 그래도 시작할까요?`)) {
+      onDone();
+    }
+  };
+
+  const Row = ({ icon, title, desc, ok }) => (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: '14px', padding: '16px',
+      background: ok ? '#E8F7EE' : '#fff', border: `1px solid ${ok ? '#7BC98F' : '#e2e2e2'}`,
+      borderRadius: '12px', marginBottom: '12px'
+    }}>
+      <span style={{ fontSize: '26px', flex: 'none' }}>{icon}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: '15px', fontWeight: 700, color: '#222' }}>{title}</div>
+        <div style={{ fontSize: '12px', color: '#666', lineHeight: 1.4, marginTop: '2px' }}>{desc}</div>
+      </div>
+      <span style={{ fontSize: '14px', fontWeight: 700, flex: 'none', color: ok ? '#2E9E52' : '#c0392b' }}>
+        {ok ? '✅ 허용됨' : '● 필요'}
+      </span>
+    </div>
+  );
+
+  return (
+    <div className="screen setup-screen" style={{ padding: 0 }}>
+      <div className="setup-content" style={{ flex: 1, overflowY: 'auto', padding: '20px', paddingBottom: '40px' }}>
+        <div className="setup-title">
+          <span style={{ fontSize: '16px', color: 'var(--blue)' }}>권한 준비 (보호자용)</span><br />
+          부모님께 드리기 전에
+        </div>
+        <div style={{ fontSize: '13px', color: '#555', lineHeight: 1.5, margin: '4px 0 20px' }}>
+          아래 권한을 <strong>지금 보호자가 미리 허용</strong>해 주세요. 그래야 나중에 부모님이
+          버튼을 눌렀을 때 <strong>권한 창이 뜨지 않고 곧바로</strong> 문자와 위치가 전송됩니다.
+        </div>
+
+        <Row icon="✉️" title="문자(SMS) 자동 발송" desc="위급 시 보호자에게 문자를 보냅니다." ok={sms} />
+        <Row icon="📍" title="위치 정보" desc="지금 어디 있는지 지도 링크로 함께 보냅니다." ok={loc} />
+        <Row icon="🔋" title="배터리 최적화 제외" desc="시스템이 앱을 꺼서 감시가 멈추지 않도록 합니다." ok={batt} />
+      </div>
+
+      <div className="setup-footer" style={{
+        padding: '20px', backgroundColor: 'white', borderTop: '1px solid #eee',
+        boxShadow: '0 -4px 12px rgba(0,0,0,0.05)', paddingBottom: 'calc(20px + env(safe-area-inset-bottom))'
+      }}>
+        {!allGranted && (
+          <button className="btn-primary" style={{ margin: 0, width: '100%' }} disabled={busy} onClick={requestAll}>
+            {busy ? '허용 요청 중…' : '권한 허용하기'}
+          </button>
+        )}
+        <button
+          onClick={handleDone}
+          style={{
+            margin: allGranted ? 0 : '12px 0 0', width: '100%', padding: '15px',
+            border: 'none', borderRadius: '10px', fontSize: '16px', fontWeight: 700,
+            color: allGranted ? 'white' : '#666',
+            background: allGranted ? 'var(--blue, #2f6fdb)' : '#eee'
+          }}
+        >
+          {allGranted ? '✅ 준비 완료 — 시작하기' : '건너뛰고 시작하기'}
+        </button>
         <div style={{ textAlign: 'center', fontSize: '13px', color: '#888', marginTop: '12px' }}>
           <strong>작은앱공방</strong>
         </div>
@@ -272,16 +386,16 @@ function App() {
   const [isBatteryOptimized, setIsBatteryOptimized] = useState(false);
   const [sendResult, setSendResult] = useState({ success: true, isEmergency: false });
 
-  useEffect(() => {
-    const checkBattery = async () => {
-      try {
-        const { isIgnoring } = await SmsPlugin.checkBatteryOptimization();
-        setIsBatteryOptimized(!isIgnoring);
-      } catch (e) {
-        console.log('Battery check error:', e);
-      }
-    };
+  const checkBattery = async () => {
+    try {
+      const { isIgnoring } = await SmsPlugin.checkBatteryOptimization();
+      setIsBatteryOptimized(!isIgnoring);
+    } catch (e) {
+      console.log('Battery check error:', e);
+    }
+  };
 
+  useEffect(() => {
     if (currentView === 'main') {
       checkBattery();
       SmsPlugin.startMonitor({
@@ -293,18 +407,30 @@ function App() {
     }
   }, [currentView, settings]);
 
+  // 설정 화면(배터리 최적화 제외)에서 돌아왔을 때 상태를 다시 확인한다.
+  // 예전엔 setTimeout(2초)으로 확인했는데, 백그라운드에서 타이머가 얼어붙고
+  // 사용자가 설정을 바꾸기 전에 먼저 실행돼 옛 값을 읽었다. 그래서 설정을
+  // 마쳐도 카드가 안 사라졌다. 앱 재개 이벤트는 백그라운드에서도 확실히
+  // 발생하므로 이걸로 확인한다.
+  useEffect(() => {
+    let handle;
+    CapApp.addListener('appStateChange', ({ isActive }) => {
+      if (isActive) checkBattery();
+    }).then(h => { handle = h; });
+    return () => { if (handle) handle.remove(); };
+  }, []);
+
   const handleRequestBatteryOptimization = async () => {
+    // 설정을 연다. 실제 상태 갱신은 위 appStateChange(앱 재개) 리스너가 맡는다.
     await SmsPlugin.requestBatteryOptimization();
-    setTimeout(async () => {
-      const { isIgnoring } = await SmsPlugin.checkBatteryOptimization();
-      setIsBatteryOptimized(!isIgnoring);
-    }, 2000);
   };
 
   const handleSaveSetup = async (newSettings) => {
     setSettings(newSettings);
     localStorage.setItem('seniorCareSettings', JSON.stringify(newSettings));
-    setCurrentView('main');
+    // 설정을 마치면 곧바로 main이 아니라 '권한 준비' 화면으로 보낸다.
+    // 보호자가 여기서 문자·위치·배터리 권한을 미리 허용하고 부모에게 넘긴다.
+    setCurrentView('permissions');
     try {
       await SmsPlugin.startMonitor({
         phone: newSettings.phone,
@@ -367,7 +493,7 @@ function App() {
   const executeAction = async (msg = actionInfo.message, isEmerg = actionInfo.isEmergency) => {
     if (isEmerg) {
       // 응급은 속도가 우선이므로 위치를 기다리지 않고 먼저 보낸다.
-      const emergMsg = `🚨[긴급] ${settings.name} 님이 도움 요청 버튼을 눌렀습니다! 즉시 확인 및 연락 바랍니다.`;
+      const emergMsg = `🚨[긴급] ${settings.name} 님이 도움 요청 버튼을 눌렀습니다! 지금 바로 ${settings.name} 님에게 전화해 확인해 주세요!`;
       const ok = await sendToAll(emergMsg);
       setSendResult({ success: ok, isEmergency: true });
       setCurrentView('result');
@@ -394,6 +520,7 @@ function App() {
   return (
     <div className="app-container">
       {currentView === 'setup' && <SetupScreen onSave={handleSaveSetup} initialSettings={settings} />}
+      {currentView === 'permissions' && <PermissionScreen onDone={() => setCurrentView('main')} />}
       {currentView === 'main' && (
         <>
           <MainScreen settings={settings} onTrigger={handleTrigger} onOpenSettings={() => setCurrentView('setup')} />
