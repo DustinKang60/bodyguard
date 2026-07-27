@@ -5,6 +5,19 @@ import { App as CapApp } from '@capacitor/app';
 
 const SmsPlugin = registerPlugin('SmsPlugin');
 
+// 배터리 허용 팝업을 띄우기 전에, 무엇을 눌러야 하는지 먼저 알려 준다.
+// 시스템 팝업에는 "배터리 최적화를 무시하시겠습니까?"라는 낯선 문구만 나와서
+// 배터리가 닳을까 걱정해 [거부]를 누르기 쉽다. 실제로 그렇게 놓쳐서
+// 감시가 멈추고 엉뚱한 안부 문자가 나간 적이 있다.
+async function askBatteryExemption() {
+  window.alert(
+    '다음 창에서 [허용]을 눌러 주세요.\n\n' +
+    '배터리를 더 쓰는 설정이 아닙니다.\n' +
+    '휴대폰이 이 앱을 꺼버려서 위급할 때 문자가 가지 못하는 일을 막아 줍니다.'
+  );
+  await SmsPlugin.requestBatteryOptimization();
+}
+
 function IntroScreen() {
   return (
     <div className="screen" style={{ backgroundColor: 'var(--blue)', color: 'white', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%', position: 'relative' }}>
@@ -144,7 +157,7 @@ function PermissionScreen({ onDone }) {
       // 배터리는 마지막에. 설정 화면을 열면 앱이 백그라운드로 갔다가
       // 돌아올 때 위 resume 리스너가 상태를 갱신한다.
       const b = await SmsPlugin.checkBatteryOptimization();
-      if (!b.isIgnoring) { try { await SmsPlugin.requestBatteryOptimization(); } catch (e) { console.log(e); } }
+      if (!b.isIgnoring) { try { await askBatteryExemption(); } catch (e) { console.log(e); } }
     } finally {
       setBusy(false);
       refresh();
@@ -155,8 +168,16 @@ function PermissionScreen({ onDone }) {
 
   const handleDone = () => {
     if (allGranted) { onDone(); return; }
-    const missing = [!sms && '문자', !loc && '위치', !batt && '배터리 최적화 제외'].filter(Boolean).join(', ');
-    if (window.confirm(`아직 허용되지 않은 권한이 있습니다: ${missing}\n\n이대로 넘어가면 위급 상황에서 문자·위치가 동작하지 않을 수 있습니다. 그래도 시작할까요?`)) {
+    const missing = [!sms && '문자', !loc && '위치', !batt && '앱이 꺼지지 않게 하기'].filter(Boolean).join(', ');
+    // 배터리를 건너뛰면 감시가 멈출 뿐 아니라 '12시간 미사용' 안부 문자가
+    // 엉뚱하게 나간다. 그 결과를 모른 채 넘어가지 않도록 분명히 알린다.
+    const batteryWarn = !batt
+      ? '\n\n특히 "앱이 꺼지지 않게 하기"를 건너뛰면, 휴대폰이 앱을 꺼버려서\n' +
+        '· 위급할 때 문자가 가지 않고\n' +
+        '· 반대로 잘 지내고 계신데도 "12시간 동안 사용되지 않았습니다" 문자가 잘못 갈 수 있습니다.\n' +
+        '(배터리는 거의 쓰지 않으니 안심하고 허용하셔도 됩니다)'
+      : '';
+    if (window.confirm(`아직 허용되지 않은 항목이 있습니다: ${missing}${batteryWarn}\n\n그래도 이대로 시작할까요?`)) {
       onDone();
     }
   };
@@ -192,7 +213,15 @@ function PermissionScreen({ onDone }) {
 
         <Row icon="✉️" title="문자(SMS) 자동 발송" desc="위급 시 보호자에게 문자를 보냅니다." ok={sms} />
         <Row icon="📍" title="위치 정보" desc="지금 어디 있는지 지도 링크로 함께 보냅니다." ok={loc} />
-        <Row icon="🔋" title="배터리 최적화 제외" desc="시스템이 앱을 꺼서 감시가 멈추지 않도록 합니다." ok={batt} />
+        {/* "배터리 최적화 제외"라는 말은 배터리를 더 쓰겠다는 뜻으로 읽힌다.
+            실제로는 반대인데, 그 오해 때문에 이 단계를 건너뛰면 감시가 멈추고
+            엉뚱한 안부 문자까지 나간다. 그래서 제목·설명을 안심 위주로 쓴다. */}
+        <Row
+          icon="🔋"
+          title="앱이 꺼지지 않게 하기"
+          desc="배터리는 거의 쓰지 않습니다. 배터리를 더 쓰는 설정이 아니라, 휴대폰이 이 앱을 마음대로 꺼버리지 못하게 막아 주는 설정이에요."
+          ok={batt}
+        />
       </div>
 
       <div className="setup-footer" style={{
@@ -223,7 +252,7 @@ function PermissionScreen({ onDone }) {
   );
 }
 
-function MainScreen({ settings, onTrigger, onOpenSettings }) {
+function MainScreen({ settings, onTrigger, onOpenSettings, isBatteryOptimized, onFixBattery }) {
   return (
     <div className="screen" style={{ position: 'relative' }}>
       <button
@@ -231,8 +260,28 @@ function MainScreen({ settings, onTrigger, onOpenSettings }) {
         style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', fontSize: '24px', opacity: 0.3, padding: '10px', cursor: 'pointer' }}
       >
         ⚙️
+        {/* 설정을 마쳐야 한다는 표시. 어르신이 아니라 들여다보는 보호자를 위한 것이다. */}
+        {isBatteryOptimized && (
+          <span style={{
+            position: 'absolute', top: '6px', right: '6px',
+            width: '10px', height: '10px', borderRadius: '50%',
+            backgroundColor: '#e53935'
+          }} />
+        )}
       </button>
-      <div className="onboard-hello"><span>{settings.name}</span> 님,<br />무엇을 도와드릴까요?</div>
+      <div className="onboard-hello">
+        <div className="hello-line">
+          <span><span>{settings.name}</span> 님,</span>
+          {/* 응급 버튼 위에 겹치면 위급할 때 버튼을 못 누른다.
+              그래서 버튼 영역을 건드리지 않는 인사말 옆에 둔다. */}
+          {isBatteryOptimized && (
+            <button className="battery-pill" onClick={onFixBattery}>
+              🔋 배터리 설정 필요
+            </button>
+          )}
+        </div>
+        무엇을 도와드릴까요?
+      </div>
 
       <div className="grid-container">
         <button className="grid-btn btn-danger" onClick={() => onTrigger('🚑 보호자에게 응급 도움을 요청합니다.', true)}>
@@ -421,8 +470,19 @@ function App() {
   }, []);
 
   const handleRequestBatteryOptimization = async () => {
-    // 설정을 연다. 실제 상태 갱신은 위 appStateChange(앱 재개) 리스너가 맡는다.
-    await SmsPlugin.requestBatteryOptimization();
+    // 허용 팝업을 띄운다. 실제 상태 갱신은 위 appStateChange(앱 재개) 리스너가 맡는다.
+    try {
+      await askBatteryExemption();
+    } catch (e) {
+      // 팝업도 설정 화면도 열리지 않는 기기가 있다. 아무 반응이 없으면
+      // 보호자는 눌렀는지조차 알 수 없으므로 직접 찾아갈 길을 알려준다.
+      console.log('배터리 설정 화면 열기 실패:', e);
+      window.alert(
+        '이 기기에서는 화면을 자동으로 열지 못했습니다.\n\n' +
+        '휴대폰 설정 → 배터리 → 앱별 배터리 관리에서\n' +
+        '"보디가드"를 찾아 "제한 없음"으로 바꿔 주세요.'
+      );
+    }
   };
 
   const handleSaveSetup = async (newSettings) => {
@@ -522,33 +582,13 @@ function App() {
       {currentView === 'setup' && <SetupScreen onSave={handleSaveSetup} initialSettings={settings} />}
       {currentView === 'permissions' && <PermissionScreen onDone={() => setCurrentView('main')} />}
       {currentView === 'main' && (
-        <>
-          <MainScreen settings={settings} onTrigger={handleTrigger} onOpenSettings={() => setCurrentView('setup')} />
-          {isBatteryOptimized && (
-            <div style={{
-              position: 'fixed', bottom: '20px', left: '20px', right: '20px',
-              backgroundColor: '#fff4e5', border: '1px solid #ffa117', borderRadius: '12px',
-              padding: '15px', zIndex: 1000, boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-              display: 'flex', flexDirection: 'column', gap: '10px'
-            }}>
-              <div style={{ color: '#663c00', fontSize: '14px', fontWeight: 'bold' }}>
-                ⚠️ 배터리 최적화 중단 필요
-              </div>
-              <div style={{ color: '#663c00', fontSize: '12px', lineHeight: '1.4' }}>
-                안드로이드 시스템이 앱을 종료하지 못하도록 '배터리 최적화 제외' 설정을 허용해 주세요. 그래야 안전하게 지켜드릴 수 있습니다.
-              </div>
-              <button
-                onClick={handleRequestBatteryOptimization}
-                style={{
-                  backgroundColor: '#ffa117', color: 'white', border: 'none',
-                  borderRadius: '6px', padding: '10px', fontSize: '14px', fontWeight: 'bold'
-                }}
-              >
-                설정하러 가기
-              </button>
-            </div>
-          )}
-        </>
+        <MainScreen
+          settings={settings}
+          onTrigger={handleTrigger}
+          onOpenSettings={() => setCurrentView('setup')}
+          isBatteryOptimized={isBatteryOptimized}
+          onFixBattery={handleRequestBatteryOptimization}
+        />
       )}
       {currentView === 'countdown' && (
         <CountdownScreen

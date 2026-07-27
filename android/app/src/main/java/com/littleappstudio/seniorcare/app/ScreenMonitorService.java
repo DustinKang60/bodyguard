@@ -96,16 +96,22 @@ public class ScreenMonitorService extends Service {
     }
 
     private void resetSmsAlarm() {
-        AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-        Intent intent = new Intent(this, SmsAlarmReceiver.class);
-        
+        rescheduleFrom(this);
+    }
+
+    // 서비스가 죽은 뒤에도 알람 리시버 쪽에서 타이머를 다시 걸 수 있도록
+    // static으로 둔다. (거짓 경보를 건너뛴 다음 다시 12시간을 재는 데 쓴다)
+    static void rescheduleFrom(Context context) {
+        AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        Intent intent = new Intent(context, SmsAlarmReceiver.class);
+
         int flags = PendingIntent.FLAG_UPDATE_CURRENT;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             flags |= PendingIntent.FLAG_IMMUTABLE;
         }
-        
-        PendingIntent pendingIntent = PendingIntent.getBroadcast(this, 0, intent, flags);
-        
+
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(context, 0, intent, flags);
+
         if (alarmManager != null) {
             // Cancel previous
             alarmManager.cancel(pendingIntent);
@@ -123,7 +129,7 @@ public class ScreenMonitorService extends Service {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel serviceChannel = new NotificationChannel(
                     CHANNEL_ID,
-                    "안심 터치 보호 서비스",
+                    "보디가드 보호 서비스",
                     NotificationManager.IMPORTANCE_LOW
             );
             NotificationManager manager = getSystemService(NotificationManager.class);
@@ -141,8 +147,8 @@ public class ScreenMonitorService extends Service {
             builder = new Notification.Builder(this);
         }
         
-        return builder.setContentTitle("시니어 안심 터치 작동 중")
-                .setContentText("어르신의 안전을 위해 모니터링 중입니다.")
+        return builder.setContentTitle("보디가드 작동 중")
+                .setContentText("안전을 위해 지켜보고 있습니다. 이 알림을 지우면 감시가 멈출 수 있어요.")
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setOngoing(true)
                 .build();
